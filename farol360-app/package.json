@@ -1,7 +1,0 @@
-{
-  "name": "farol360-app",
-  "version": "0.1.0",
-  "private": true,
-  "description": "FAROL360 — aplicação de análises por IA (fatia vertical: Empresa)",
-  "type": "module"
-}
