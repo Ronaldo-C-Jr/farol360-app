@@ -67,6 +67,45 @@ const SCHEMA_EMPRESA = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "es
  "confiabilidade":{"nota_0_100":0,"limitacoes":[],"fontes_cliente_consideradas":false}
 }`;
 
+function promptGoverno(d, contexto) {
+  return `Gere uma AVALIAÇÃO INDIVIDUAL DE GOVERNO.
+
+DADOS:
+- Município/UF: ${d.municipio || '(não informado)'}
+- Instância: ${d.instancia || '(não informado)'}
+- Área temática: ${d.area || 'Geral'}
+- Período histórico: ${d.periodo || 'últimos anos'}
+- Período de projeção: ${d.projecao || 'sem projeção'}
+- Fontes próprias do cliente: ${d.fontes ? d.fontes : 'nenhuma'} (classificar; não tratar como oficiais)
+
+DADOS PESQUISADOS NA WEB (use como base factual; classifique a evidência conforme a fonte):
+${contexto ? contexto : '(nenhuma pesquisa disponível — trabalhe com conhecimento do setor público e marque tudo como estimativa)'}
+
+REGRAS ESPECÍFICAS:
+- NUNCA usar valores monetários. Só %, índices ou per capita.
+- Cada dado leva "evidencia": oficial | derivado-estadual | analogia-pares | tendencial | proxy.
+- "est":true quando o número for estimativa.
+- Sentimento popular é proxy, nunca intenção de voto.
+- Declarar lacunas; não inventar fontes nem números.`;
+}
+
+const SCHEMA_GOVERNO = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "est":true onde o valor for estimativa):
+{
+ "cabecalho":{"municipio":"","instancia":"","area":"","periodo_hist":"","periodo_proj":"","confiabilidade_0_100":0,"integridade_0_100":0},
+ "indicadores":[{"indicador":"","municipio":"","estado":"","brasil":"","tendencia":"","evidencia":"oficial","est":false}],
+ "diagnostico":"",
+ "linha_tempo":[{"data":"","evento":"","efeito":"","evidencia":"oficial"}],
+ "barreiras":[""],
+ "projecoes":[{"ano":"","indicador":"","sem_intervencao":"","com_intervencao":"","est":true}],
+ "ods":[{"meta":"","status":"","tendencia":"","evidencia":"oficial"}],
+ "sentimento":[{"frase":"","polaridade":"","tema":"","evidencia":"proxy"}],
+ "swot":{"forcas":[],"fraquezas":[],"oportunidades":[],"ameacas":[]},
+ "gut":[{"problema":"","g":0,"u":0,"t":0,"gut":0,"prioridade":""}],
+ "pdca":[{"etapa":"","objetivo":"","indicador":"","prazo":""}],
+ "conclusao":"",
+ "confiabilidade":{"nota_0_100":0,"limitacoes":[]}
+}`;
+
 function extrairJSON(txt) {
   let s = String(txt).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/,'').trim();
   const i = s.indexOf('{'); const j = s.lastIndexOf('}');
@@ -81,11 +120,13 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const { promptId = 'empresa', dados = {}, modelo = 'sonnet', contexto = '' } = body;
-    if (promptId !== 'empresa') { res.status(400).json({ erro: 'Nesta etapa só a análise de Empresa está ligada à IA.' }); return; }
+    if (promptId !== 'empresa' && promptId !== 'governo') { res.status(400).json({ erro: 'Análise não reconhecida.' }); return; }
 
     const m = MODELOS[modelo] || MODELOS.sonnet;
-    const userPrompt = promptEmpresa(dados, contexto) + '\n\n' + SCHEMA_EMPRESA +
-      '\n\nResponda APENAS com o objeto JSON, começando com { e terminando com }. Sem texto antes ou depois, sem cercas de código.';
+    const base = promptId === 'governo'
+      ? promptGoverno(dados, contexto) + '\n\n' + SCHEMA_GOVERNO
+      : promptEmpresa(dados, contexto) + '\n\n' + SCHEMA_EMPRESA;
+    const userPrompt = base + '\n\nResponda APENAS com o objeto JSON, começando com { e terminando com }. Sem texto antes ou depois, sem cercas de código.';
 
     const ac = new AbortController();
     const to = setTimeout(() => ac.abort(), 55000);
