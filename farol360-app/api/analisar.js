@@ -2,9 +2,9 @@
 // NÃO pesquisa (isso é a etapa 1). Recebe { dados, modelo, contexto } e devolve o relatório em JSON.
 
 const MODELOS = {
-  haiku:  { id: 'claude-haiku-4-5',  max: 6500 },
-  sonnet: { id: 'claude-sonnet-5',   max: 9000 },
-  opus:   { id: 'claude-opus-4-8',   max: 11000 },
+  haiku:  { id: 'claude-haiku-4-5',  max: 8000 },
+  sonnet: { id: 'claude-sonnet-5',   max: 16000 },
+  opus:   { id: 'claude-opus-4-8',   max: 16000 },
 };
 
 const PRECO_CENT = { haiku: 50, sonnet: 100, opus: 150 };
