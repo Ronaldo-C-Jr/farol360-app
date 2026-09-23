@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FAROL360 Análises</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/favicon.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FAROL360">
 <style>
   :root{
     --bg:#eef2f1;--surface:#ffffff;--surface-2:#e4ebe9;--surface-3:#f3f7f6;
@@ -161,6 +169,12 @@
   .swot ul{margin:0;padding-left:16px;font-size:12px;display:flex;flex-direction:column;gap:4px}
   .callout{display:flex;gap:11px;background:var(--accent-soft);border-radius:var(--r-sm);padding:13px 15px;margin:6px 0 12px;font-size:12.5px;color:var(--accent-ink)}
   .callout b{color:var(--ink)}
+  .comprar{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:18px}
+  .comprar .cp-intro{font-weight:600;color:var(--crit);margin-bottom:9px;font-size:13.5px}
+  .comprar .cp-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin-bottom:10px}
+  .comprar .cp-steps{margin:0 0 14px;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-soft)}
+  .comprar .cp-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .comprar .cp-btns .btn{gap:7px;text-decoration:none}
   .onepager{background:var(--ink);color:#fff;border-radius:var(--r);padding:22px 24px;margin:6px 0 4px}
   .onepager h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);margin-bottom:14px}
   .onepager .op-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px}
@@ -215,6 +229,16 @@ const SB_ANON='sb_publishable_5o74K-oYu8VKfiLHfy_dLQ_Y80ywKlT';
 const PRECO_CENT={haiku:50,sonnet:100,opus:150};
 function saldoBR(c){return precoBR((Number(c)||0)/100);}
 function liberadas(){return (state.cliente&&state.cliente.analises)||[];}
+const CONTATO={email:'ronaldojr13@gmail.com',whats:'5577991219461'};
+const IC_WHATS='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 19.5l1.4-4A7.5 7.5 0 1 1 20 11.5z"/><circle cx="8.7" cy="11.6" r=".7" fill="currentColor" stroke="none"/><circle cx="12" cy="11.6" r=".7" fill="currentColor" stroke="none"/><circle cx="15.3" cy="11.6" r=".7" fill="currentColor" stroke="none"/></svg>';
+const IC_MAIL='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></svg>';
+function msgCreditos(){var em=(state.cliente&&state.cliente.email)||'';return 'Olá! Quero comprar créditos no FAROL360.'+(em?(' Minha conta: '+em+'.'):'');}
+function linkEmail(){return 'mailto:'+CONTATO.email+'?subject='+encodeURIComponent('Compra de créditos — FAROL360')+'&body='+encodeURIComponent(msgCreditos());}
+function linkWhats(){return 'https://wa.me/'+CONTATO.whats+'?text='+encodeURIComponent(msgCreditos());}
+function comprarBox(intro){return '<div class="comprar">'+(intro?'<div class="cp-intro">'+esc(intro)+'</div>':'')+
+ '<div class="cp-h">Como comprar créditos</div>'+
+ '<ol class="cp-steps"><li>Fale com o administrador pelos botões abaixo.</li><li>Você recebe um link de pagamento.</li><li>Pague e envie o comprovante.</li><li>Seus créditos são lançados na conta.</li></ol>'+
+ '<div class="cp-btns"><a class="btn sm" href="'+linkWhats()+'" target="_blank" rel="noopener">'+IC_WHATS+' WhatsApp</a><a class="btn ghost sm" href="'+linkEmail()+'">'+IC_MAIL+' E-mail</a></div></div>';}
 async function sbLogin(email,senha){
   const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SB_ANON,'content-type':'application/json'},body:JSON.stringify({email:email,password:senha})});
   const j=await r.json();
@@ -306,7 +330,10 @@ function renderLogin(){
    '<div class="field"><label for="senha">Senha</label><input id="senha" type="password" autocomplete="current-password" placeholder="Sua senha"></div>'+
    '<button class="btn block" id="btnEntrar" type="submit">Entrar</button>'+
    '<div class="errbox" id="loginErr" hidden></div>'+
-   '<div class="login-note">Acesso restrito a clientes Gênesis / Farol360. As credenciais são cadastradas pelo administrador.</div></form></div>';
+   '<div class="login-note">Acesso restrito a clientes Gênesis / Farol360. As credenciais são cadastradas pelo administrador.</div>'+
+   '<button class="btn ghost sm" id="btnInstalar" type="button" hidden style="width:100%;margin-top:14px">'+farol(15)+' Instalar o app</button>'+
+   '<div class="hint" id="iosHint" hidden style="text-align:center;margin-top:9px">No iPhone, toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.</div>'+
+   '</form></div>';
   document.getElementById('lf').addEventListener('submit',async e=>{e.preventDefault();
    const btn=document.getElementById('btnEntrar'),errEl=document.getElementById('loginErr');
    const em=(document.getElementById('email').value||'').trim(),pw=document.getElementById('senha').value||'';
@@ -321,6 +348,7 @@ function renderLogin(){
      go('catalog');
    }catch(err){errEl.textContent=(err&&err.message)||'Não foi possível entrar.';errEl.hidden=false;btn.disabled=false;btn.textContent=txt;}
   });
+  atualizarInstalar();
 }
 function catalog(){var lib=liberadas();var semSaldo=(state.cliente&&Number(state.cliente.saldo)||0)<PRECO_CENT.haiku;
  var disp=Object.values(PROMPTS).filter(function(p){return lib.indexOf(p.id)>=0;});
@@ -328,7 +356,7 @@ function catalog(){var lib=liberadas();var semSaldo=(state.cliente&&Number(state
  var cards=disp.map(function(p){var bloq=semSaldo;return '<button class="card" '+(bloq?'disabled':'data-open="'+p.id+'"')+'><div class="ic">'+p.icone+'</div>'+
   '<h3>'+esc(p.titulo)+(bloq?' <span class="tagpill">sem saldo</span>':'')+'</h3><p>'+esc(p.descricao)+'</p>'+
   '<div class="foot"><span>base:</span><span class="v">'+esc(p.versao)+'</span><span class="go">'+(bloq?'':'Abrir ›')+'</span></div></button>';}).join('');
- var aviso=semSaldo?'<div class="callout" style="margin-bottom:18px">'+IC.info+'<div>Seu saldo de créditos acabou. Para gerar novos relatórios, <b>solicite mais créditos ao administrador</b> da Farol360.</div></div>':'';
+ var aviso=semSaldo?comprarBox('Seu saldo de créditos acabou.'):'';
  return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div>'+aviso+'<div class="cards">'+cards+'</div>';}
 function fieldHTML(f){const v=state.dados[f.id];const req=f.obrig?'<span class="req">*</span>':'';
  if(f.tipo==='text')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><input id="f_'+f.id+'" data-f="'+f.id+'" type="text" placeholder="'+esc(f.placeholder||'')+'" value="'+esc(v||'')+'"></div>';
@@ -343,12 +371,13 @@ function form(){const p=PROMPTS[state.promptId];const fs=p.campos.map(fieldHTML)
  const mods=Object.entries(MODELOS).map(([k,m])=>'<label class="modopt '+(state.modelo===k?'on':'')+(saldo<PRECO_CENT[k]?' off':'')+'"><input type="radio" name="modelo" value="'+k+'" '+(state.modelo===k?'checked':'')+' data-mod><span><span class="mm">'+esc(m.nome)+'</span><span class="md">'+esc(m.desc)+'</span></span><span class="price">'+precoBR(m.preco)+'</span></label>').join('');
  return '<button class="backlink" data-act="back">'+IC.back+' Catálogo</button><div class="form-grid"><div class="form-card"><h2>'+esc(p.titulo)+'</h2><div class="sub">'+esc(p.subtitulo)+'</div><form id="tf">'+fs+'</form>'+(state.erro?'<div class="errbox"><b>Não foi possível gerar.</b>'+esc(state.erro)+'</div>':'')+'</div>'+
   '<div class="side"><div class="panel"><h4>Tipo de consulta</h4><div class="modrow">'+mods+'</div><div class="cost"><span class="lbl">Valor deste relatório</span><span class="val" id="cv">'+precoBR(MODELOS[state.modelo].preco)+'</span></div><div class="cost" style="border-top:none;padding-top:4px;margin-top:0"><span class="lbl">Seu saldo</span><span class="val" id="sv2" style="font-size:13px;color:'+(pode?'var(--good)':'var(--crit)')+'">'+saldoBR(saldo)+'</span></div></div>'+
-  '<button class="btn block" data-act="gerar" id="btnGerar" '+(pode?'':'disabled')+'>'+farol(15,'#fff')+' Gerar relatório</button><div class="hint" id="genHint" style="text-align:center">'+(pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou solicite mais créditos.')+'</div></div></div>';}
+  '<button class="btn block" data-act="gerar" id="btnGerar" '+(pode?'':'disabled')+'>'+farol(15,'#fff')+' Gerar relatório</button><div class="hint" id="genHint" style="text-align:center">'+(pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou compre mais créditos.')+'</div><div id="cpWrap" style="margin-top:14px"'+(pode?' hidden':'')+'>'+comprarBox()+'</div></div></div>';}
 function atualizarConsulta(){var saldo=(state.cliente&&Number(state.cliente.saldo))||0;var preco=PRECO_CENT[state.modelo];var pode=saldo>=preco;
  var cv=document.getElementById('cv');if(cv)cv.textContent=precoBR(MODELOS[state.modelo].preco);
  var sv2=document.getElementById('sv2');if(sv2){sv2.textContent=saldoBR(saldo);sv2.style.color=pode?'var(--good)':'var(--crit)';}
  var btn=document.getElementById('btnGerar');if(btn)btn.disabled=!pode;
- var hint=document.getElementById('genHint');if(hint)hint.textContent=pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou solicite mais créditos.';}
+ var hint=document.getElementById('genHint');if(hint)hint.textContent=pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou compre mais créditos.';
+ var cp=document.getElementById('cpWrap');if(cp)cp.hidden=pode;}
 function beacon(){return '<div class="beacon" aria-hidden="true"><div class="lring"></div>'+
  '<svg class="lh" viewBox="0 0 100 100"><defs><mask id="lhm"><rect width="100" height="100" fill="#fff"/>'+
  '<g stroke="#000" stroke-width="7" stroke-linecap="round"><line x1="40" y1="64" x2="60" y2="56.5"/><line x1="41" y1="76" x2="60" y2="68.5"/></g></mask></defs>'+
@@ -543,6 +572,20 @@ async function gerar(){const p=PROMPTS[state.promptId];p.campos.forEach(f=>{if(f
 }
 function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme');const dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',dark?'light':'dark');}
 restaurarSessao();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}
+var _deferredPrompt=null;
+function atualizarInstalar(){
+  var btn=document.getElementById('btnInstalar');if(!btn)return;
+  var hint=document.getElementById('iosHint');
+  var standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  var isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent||'');
+  if(standalone){btn.hidden=true;if(hint)hint.hidden=true;return;}
+  if(_deferredPrompt){btn.hidden=false;if(hint)hint.hidden=true;btn.onclick=async function(){if(!_deferredPrompt)return;_deferredPrompt.prompt();try{await _deferredPrompt.userChoice;}catch(e){}_deferredPrompt=null;btn.hidden=true;};}
+  else if(isiOS){btn.hidden=false;btn.onclick=function(){if(hint)hint.hidden=!hint.hidden;};}
+  else{btn.hidden=true;if(hint)hint.hidden=true;}
+}
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();_deferredPrompt=e;atualizarInstalar();});
+window.addEventListener('appinstalled',function(){_deferredPrompt=null;var b=document.getElementById('btnInstalar');if(b)b.hidden=true;var h=document.getElementById('iosHint');if(h)h.hidden=true;});
 </script>
 </body>
 </html>
