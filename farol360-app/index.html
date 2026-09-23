@@ -39,7 +39,20 @@
   img{max-width:100%}[hidden]{display:none!important}
   .app{height:100%;display:flex;flex-direction:column}
   .demo-bar{display:flex;align-items:center;gap:8px;justify-content:center;background:var(--info-soft);color:var(--info);font-size:11.5px;font-weight:600;padding:6px 16px;text-align:center;padding-top:calc(6px + env(safe-area-inset-top,0px))}
-  .topbar{display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .topbar{display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--line);padding-top:calc(10px + env(safe-area-inset-top,0px))}
+  .saldo{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2;padding:4px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-3)}
+  .saldo .sl{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:700}
+  .saldo .sv{font-family:var(--mono);font-weight:600;font-size:14px;color:var(--good)}
+  .modopt.off{opacity:.55}.modopt.off .price{color:var(--crit)}
+  .cli-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .cli{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+  .cli-h{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;margin-bottom:10px}
+  .cli-n{font-weight:600;font-size:14px}.cli-e{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .cli-saldo{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--good);white-space:nowrap}
+  .cli-edit{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--line-soft)}
+  .cli-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .cli-row input[type=number]{width:96px}
+  .mini{font-size:11px;font-weight:600;color:var(--ink-soft);min-width:112px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:600}
   .brand .wm{font-size:15px;letter-spacing:.02em}.brand .wm span{color:var(--accent)}
   .brand .tag{font-size:10px;color:var(--ink-faint);letter-spacing:.14em;text-transform:uppercase;font-weight:600;margin-top:1px}
@@ -165,6 +178,7 @@
   .brange{position:absolute;top:0;left:0;height:100%;background:var(--accent);opacity:.85;border-radius:4px}
   .barrow .bval{font-family:var(--mono);color:var(--ink-soft);text-align:right}
   @media (max-width:520px){.barrow{grid-template-columns:120px 1fr 52px}}
+  @media (max-width:560px){.who{display:none}}
   @media (max-width:780px){.form-grid{grid-template-columns:1fr}.side{position:static}.doc-inner{padding:24px 20px}.swot{grid-template-columns:1fr}.rep-title h1{font-size:21px}}
   @page{margin:16mm 14mm}
   @media print{
@@ -185,7 +199,37 @@
 <div class="app" id="app"></div>
 <script>
 const state={view:'login',promptId:null,dados:{},modelo:'sonnet',cliente:null,relatorio:null,fontes:[],fase:'',erro:null};
-const MODELOS={haiku:{nome:'Haiku 4.5',desc:'Rápido e econômico',custoRel:0.19},sonnet:{nome:'Sonnet 5',desc:'Padrão recomendado',custoRel:0.38},opus:{nome:'Opus 4.8',desc:'Análise mais profunda',custoRel:0.95}};
+const MODELOS={haiku:{nome:'Leve',desc:'Rápida e essencial',preco:0.50},sonnet:{nome:'Moderada',desc:'Padrão recomendada',preco:1.00},opus:{nome:'Pesada',desc:'Mais profunda e ampla',preco:1.50}};
+function precoBR(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');}
+const SB_URL='https://xjifquevscvkdhnjxqkh.supabase.co';
+const SB_ANON='sb_publishable_5o74K-oYu8VKfiLHfy_dLQ_Y80ywKlT';
+const PRECO_CENT={haiku:50,sonnet:100,opus:150};
+function saldoBR(c){return precoBR((Number(c)||0)/100);}
+function liberadas(){return (state.cliente&&state.cliente.analises)||[];}
+async function sbLogin(email,senha){
+  const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SB_ANON,'content-type':'application/json'},body:JSON.stringify({email:email,password:senha})});
+  const j=await r.json();
+  if(!r.ok||!j.access_token)throw new Error((j&&(j.error_description||j.msg||j.error))||'E-mail ou senha inválidos.');
+  return {token:j.access_token,user:j.user};
+}
+async function sbPerfil(uid,token){
+  const r=await fetch(SB_URL+'/rest/v1/perfis?select=*&id=eq.'+uid,{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+token}});
+  const j=await r.json();return (Array.isArray(j)&&j[0])?j[0]:{};
+}
+async function sbUser(token){try{const r=await fetch(SB_URL+'/auth/v1/user',{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+token}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function setCliente(uid,email,token,perfil){
+  state.cliente={user_id:uid,email:email,token:token,nome:perfil.nome||email,saldo:perfil.saldo_centavos||0,analises:perfil.analises||[],ativo:perfil.ativo!==false,papel:perfil.papel||'cliente'};
+  try{localStorage.setItem('f360_token',token);}catch(e){}
+}
+function sair(){try{localStorage.removeItem('f360_token');}catch(e){}state.cliente=null;state.dados={};state.relatorio=null;go('login');}
+async function restaurarSessao(){
+  var t=null;try{t=localStorage.getItem('f360_token');}catch(e){}
+  if(!t){go('login');return;}
+  app.innerHTML='<div class="login"><div class="login-card" style="text-align:center;color:var(--ink-soft)">'+farol(40)+'<div style="margin-top:12px">Carregando…</div></div></div>';
+  var u=await sbUser(t);
+  if(!u||!u.id){sair();return;}
+  var perfil=await sbPerfil(u.id,t);setCliente(u.id,u.email,t,perfil);go('catalog');
+}
 const IC={perfil:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>',governo:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/></svg>',empresa:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21V7l7-3v17M17 21V10l-7-3M3 21h18"/></svg>',back:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',info:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v0"/></svg>'};
 function farol(s,c){return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 32 32" fill="none"><path d="M13 12h6l2 15H11z" fill="'+(c||'var(--accent)')+'" opacity=".9"/><rect x="12.5" y="7" width="7" height="5" rx="1" fill="'+(c||'var(--accent)')+'"/><circle cx="16" cy="5" r="2.4" fill="var(--brand)"/><path d="M18 5l9-3M18 5l9 3M14 5L5 2M14 5L5 8" stroke="var(--brand)" stroke-width="1.4" stroke-linecap="round" opacity=".8"/></svg>';}
 const PROMPTS={
@@ -219,40 +263,65 @@ const PROMPTS={
 const app=document.getElementById('app');
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function go(v){state.view=v;render();const m=document.querySelector('.main');if(m)m.scrollTo(0,0);window.scrollTo(0,0);}
-function render(){if(state.view==='login')return renderLogin();app.innerHTML=shell(body());bindCommon();if(state.view==='form')bindForm();}
-function shell(b){const c=state.cliente;return '<div class="demo-bar">'+farol(14)+' <span>As três análises usam a IA de verdade, com busca na web. Login e histórico entram em seguida.</span></div>'+
+function render(){if(state.view==='login')return renderLogin();app.innerHTML=shell(body());bindCommon();if(state.view==='form')bindForm();if(state.view==='admin')bindAdmin();}
+function shell(b){const c=state.cliente;return ''+
  '<div class="topbar"><div class="brand">'+farol(26)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div><div class="spacer"></div>'+
- '<div class="who"><div class="n">'+esc(c&&c.nome||'')+'</div><div class="c">'+esc(c&&c.org||'')+'</div></div>'+
+ '<div class="saldo" title="Saldo de créditos"><span class="sl">Saldo</span><span class="sv">'+saldoBR(c&&c.saldo)+'</span></div>'+
+ '<div class="who"><div class="n">'+esc(c&&c.nome||'')+'</div><div class="c">'+esc(c&&c.email||'')+'</div></div>'+
+ ((c&&c.papel==='admin')?'<button class="iconbtn" data-act="admin" title="Administração"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>':'')+
  '<button class="iconbtn" data-act="theme" title="Tema"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>'+
  '<button class="iconbtn" data-act="logout" title="Sair"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button></div>'+
  '<div class="main"><div class="wrap">'+b+'</div></div>';}
-function body(){if(state.view==='catalog')return catalog();if(state.view==='form')return form();if(state.view==='loading')return loading();if(state.view==='report')return report();return '';}
+function body(){if(state.view==='catalog')return catalog();if(state.view==='form')return form();if(state.view==='loading')return loading();if(state.view==='report')return report();if(state.view==='admin')return admin();return '';}
 function renderLogin(){
-  app.innerHTML='<div class="demo-bar">'+farol(14)+' <span>Acesso de demonstração. O login seguro por cliente entra na próxima etapa.</span></div>'+
-   '<div class="login"><form class="login-card" id="lf"><div class="login-brand">'+farol(46)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div>'+
-   '<div class="field"><label for="email">E-mail</label><input id="email" type="email" value="cliente@genesis.com"></div>'+
-   '<div class="field"><label for="senha">Senha</label><input id="senha" type="password" value="demo1234"></div>'+
-   '<button class="btn block" type="submit">Entrar</button><div class="login-note">Acesso restrito a clientes Gênesis / Farol360.</div></form></div>';
-  document.getElementById('lf').addEventListener('submit',e=>{e.preventDefault();const em=document.getElementById('email').value||'cliente@genesis.com';
-   state.cliente={nome:em.split('@')[0].replace(/\./g,' ').replace(/\b\w/g,m=>m.toUpperCase()),org:'Cliente Gênesis'};go('catalog');});
+  app.innerHTML='<div class="login"><form class="login-card" id="lf"><div class="login-brand">'+farol(46)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div>'+
+   '<div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" placeholder="seu@email.com"></div>'+
+   '<div class="field"><label for="senha">Senha</label><input id="senha" type="password" autocomplete="current-password" placeholder="Sua senha"></div>'+
+   '<button class="btn block" id="btnEntrar" type="submit">Entrar</button>'+
+   '<div class="errbox" id="loginErr" hidden></div>'+
+   '<div class="login-note">Acesso restrito a clientes Gênesis / Farol360. As credenciais são cadastradas pelo administrador.</div></form></div>';
+  document.getElementById('lf').addEventListener('submit',async e=>{e.preventDefault();
+   const btn=document.getElementById('btnEntrar'),errEl=document.getElementById('loginErr');
+   const em=(document.getElementById('email').value||'').trim(),pw=document.getElementById('senha').value||'';
+   errEl.hidden=true;
+   if(!em||!pw){errEl.textContent='Informe e-mail e senha.';errEl.hidden=false;return;}
+   btn.disabled=true;const txt=btn.textContent;btn.textContent='Entrando…';
+   try{
+     const s=await sbLogin(em,pw);
+     const perfil=await sbPerfil(s.user.id,s.token);
+     if(perfil.ativo===false)throw new Error('Conta inativa. Contate o administrador.');
+     setCliente(s.user.id,s.user.email||em,s.token,perfil);
+     go('catalog');
+   }catch(err){errEl.textContent=(err&&err.message)||'Não foi possível entrar.';errEl.hidden=false;btn.disabled=false;btn.textContent=txt;}
+  });
 }
-function catalog(){const cards=Object.values(PROMPTS).map(p=>'<button class="card" '+(p.ligado?'data-open="'+p.id+'"':'disabled')+'><div class="ic">'+p.icone+'</div>'+
-  '<h3>'+esc(p.titulo)+(p.ligado?'':' <span class="tagpill">em breve</span>')+'</h3><p>'+esc(p.descricao)+'</p>'+
-  '<div class="foot"><span>base:</span><span class="v">'+esc(p.versao)+'</span><span class="go">'+(p.ligado?'Abrir ›':'')+'</span></div></button>').join('');
- return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div><div class="cards">'+cards+'</div>';}
+function catalog(){var lib=liberadas();var semSaldo=(state.cliente&&Number(state.cliente.saldo)||0)<PRECO_CENT.haiku;
+ var disp=Object.values(PROMPTS).filter(function(p){return lib.indexOf(p.id)>=0;});
+ if(!disp.length)return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Nenhuma análise liberada</h1><p>Seu acesso ainda não tem análises habilitadas. Fale com o administrador da Farol360 para liberar o seu plano.</p></div>';
+ var cards=disp.map(function(p){var bloq=semSaldo;return '<button class="card" '+(bloq?'disabled':'data-open="'+p.id+'"')+'><div class="ic">'+p.icone+'</div>'+
+  '<h3>'+esc(p.titulo)+(bloq?' <span class="tagpill">sem saldo</span>':'')+'</h3><p>'+esc(p.descricao)+'</p>'+
+  '<div class="foot"><span>base:</span><span class="v">'+esc(p.versao)+'</span><span class="go">'+(bloq?'':'Abrir ›')+'</span></div></button>';}).join('');
+ var aviso=semSaldo?'<div class="callout" style="margin-bottom:18px">'+IC.info+'<div>Seu saldo de créditos acabou. Para gerar novos relatórios, <b>solicite mais créditos ao administrador</b> da Farol360.</div></div>':'';
+ return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div>'+aviso+'<div class="cards">'+cards+'</div>';}
 function fieldHTML(f){const v=state.dados[f.id];const req=f.obrig?'<span class="req">*</span>':'';
  if(f.tipo==='text')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><input id="f_'+f.id+'" data-f="'+f.id+'" type="text" placeholder="'+esc(f.placeholder||'')+'" value="'+esc(v||'')+'"></div>';
  if(f.tipo==='select'){const o=f.opcoes.map(x=>'<option '+(v===x?'selected':'')+'>'+esc(x)+'</option>').join('');return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><select id="f_'+f.id+'" data-f="'+f.id+'"><option value="" '+(!v?'selected':'')+' disabled>Selecione…</option>'+o+'</select></div>';}
  if(f.tipo==='seg'){const cur=v||f.padrao;const o=f.opcoes.map(x=>'<button type="button" class="opt '+(cur===x?'on':'')+'" data-seg="'+f.id+'" data-val="'+esc(x)+'">'+esc(x)+'</button>').join('');return '<div class="field"><label>'+esc(f.label)+' '+req+'</label><div class="seg">'+o+'</div></div>';}
  if(f.tipo==='checks'){const a=v||[];const o=f.opcoes.map(x=>'<label class="chk '+(a.includes(x)?'on':'')+'"><input type="checkbox" data-chk="'+f.id+'" value="'+esc(x)+'" '+(a.includes(x)?'checked':'')+'>'+esc(x)+'</label>').join('');return '<div class="field"><label>'+esc(f.label)+'</label><div class="checks">'+o+'</div></div>';}
- if(f.tipo==='fontes')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+'</label><textarea id="f_'+f.id+'" data-f="'+f.id+'" placeholder="'+esc(f.placeholder||'')+'">'+esc(v||'')+'</textarea><div class="hint">Fontes suas são classificadas pela metodologia — não viram “oficial” automaticamente.</div></div>';
+ if(f.tipo==='fontes')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+'</label><textarea id="f_'+f.id+'" data-f="'+f.id+'" placeholder="'+esc(f.placeholder||'')+'">'+esc(v||'')+'</textarea><div class="hint"><b>Copie e cole o texto</b> das suas informações aqui (não há envio de arquivo). O que você colar é classificado pela metodologia — não vira “oficial” automaticamente.</div></div>';
  return '';}
 function form(){const p=PROMPTS[state.promptId];const fs=p.campos.map(fieldHTML).join('');
- const mods=Object.entries(MODELOS).map(([k,m])=>'<label class="modopt '+(state.modelo===k?'on':'')+'"><input type="radio" name="modelo" value="'+k+'" '+(state.modelo===k?'checked':'')+' data-mod><span><span class="mm">'+esc(m.nome)+'</span><span class="md">'+esc(m.desc)+'</span></span><span class="price">~R$'+m.custoRel.toFixed(2)+'</span></label>').join('');
+ const saldo=(state.cliente&&Number(state.cliente.saldo))||0;const preco=PRECO_CENT[state.modelo];const pode=saldo>=preco;
+ const mods=Object.entries(MODELOS).map(([k,m])=>'<label class="modopt '+(state.modelo===k?'on':'')+(saldo<PRECO_CENT[k]?' off':'')+'"><input type="radio" name="modelo" value="'+k+'" '+(state.modelo===k?'checked':'')+' data-mod><span><span class="mm">'+esc(m.nome)+'</span><span class="md">'+esc(m.desc)+'</span></span><span class="price">'+precoBR(m.preco)+'</span></label>').join('');
  return '<button class="backlink" data-act="back">'+IC.back+' Catálogo</button><div class="form-grid"><div class="form-card"><h2>'+esc(p.titulo)+'</h2><div class="sub">'+esc(p.subtitulo)+'</div><form id="tf">'+fs+'</form>'+(state.erro?'<div class="errbox"><b>Não foi possível gerar.</b>'+esc(state.erro)+'</div>':'')+'</div>'+
-  '<div class="side"><div class="panel"><h4>Motor de IA</h4><div class="modrow">'+mods+'</div><div class="cost"><span class="lbl">Custo estimado</span><span class="val" id="cv">~R$'+MODELOS[state.modelo].custoRel.toFixed(2)+'<small>/relatório</small></span></div></div>'+
-  '<button class="btn block" data-act="gerar">'+farol(15,'#fff')+' Gerar relatório</button><div class="hint" style="text-align:center">A geração usa a IA de verdade e consome crédito de API (centavos).</div></div></div>';}
-function loading(){return '<div class="loading"><div><div class="beam">'+farol(56)+'</div><h3>'+esc(state.fase||'Processando…')+'</h3><p>Modelo '+esc(MODELOS[state.modelo].nome)+' · '+esc(PROMPTS[state.promptId].titulo)+'</p><p class="hint" style="max-width:300px;margin:14px auto 0">São duas etapas: pesquisa na web e depois a redação. Pode levar cerca de 1 minuto no total.</p></div></div>';}
+  '<div class="side"><div class="panel"><h4>Tipo de consulta</h4><div class="modrow">'+mods+'</div><div class="cost"><span class="lbl">Valor deste relatório</span><span class="val" id="cv">'+precoBR(MODELOS[state.modelo].preco)+'</span></div><div class="cost" style="border-top:none;padding-top:4px;margin-top:0"><span class="lbl">Seu saldo</span><span class="val" id="sv2" style="font-size:13px;color:'+(pode?'var(--good)':'var(--crit)')+'">'+saldoBR(saldo)+'</span></div></div>'+
+  '<button class="btn block" data-act="gerar" id="btnGerar" '+(pode?'':'disabled')+'>'+farol(15,'#fff')+' Gerar relatório</button><div class="hint" id="genHint" style="text-align:center">'+(pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou solicite mais créditos.')+'</div></div></div>';}
+function atualizarConsulta(){var saldo=(state.cliente&&Number(state.cliente.saldo))||0;var preco=PRECO_CENT[state.modelo];var pode=saldo>=preco;
+ var cv=document.getElementById('cv');if(cv)cv.textContent=precoBR(MODELOS[state.modelo].preco);
+ var sv2=document.getElementById('sv2');if(sv2){sv2.textContent=saldoBR(saldo);sv2.style.color=pode?'var(--good)':'var(--crit)';}
+ var btn=document.getElementById('btnGerar');if(btn)btn.disabled=!pode;
+ var hint=document.getElementById('genHint');if(hint)hint.textContent=pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou solicite mais créditos.';}
+function loading(){return '<div class="loading"><div><div class="beam">'+farol(56)+'</div><h3>'+esc(state.fase||'Processando…')+'</h3><p>Consulta '+esc(MODELOS[state.modelo].nome)+' · '+esc(PROMPTS[state.promptId].titulo)+'</p><p class="hint" style="max-width:300px;margin:14px auto 0">São duas etapas: pesquisa na web e depois a redação. Pode levar cerca de 1 minuto no total.</p></div></div>';}
 // ---- Render dos relatórios a partir do JSON da IA ----
 function tbl(head,rows){return '<div class="tbl-wrap"><table><thead><tr>'+head.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';}
 function sec(n,t,inner){return '<div class="sec"><div class="sec-h"><span class="num">'+n+'</span><h2>'+esc(t)+'</h2></div>'+inner+'</div>';}
@@ -291,7 +360,7 @@ function relEmpresa(r,d){
  var _pj=filtra(r.projecoes_12m,['cenario']);if(_pj.length)s.push(sec('06','Projeções 12 meses',tbl(['Cenário','Receita relativa','Margem','Leitura'],_pj.map(function(x){return '<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td class="num-c">'+esc(x.receita_relativa)+'</td><td class="num-c">'+esc(x.margem)+'</td><td>'+esc(x.leitura)+'</td></tr>';}).join(''))));
  var _rm=filtra(r.roadmap,['acao','horizonte']);if(_rm.length)s.push(sec('07','Diagnóstico & Roadmap',tbl(['Horizonte','Ação prioritária'],_rm.map(function(x){return '<tr><td><b>'+esc(x.horizonte)+'</b></td><td>'+esc(x.acao)+'</td></tr>';}).join(''))));
  var nota='<b>Metodologia FAROL360:</b> valores com <span class="star">*</span> são estimativa, não dado observado; a coluna Evidência classifica cada fonte. '+(conf.fontes_cliente_consideradas?'Inclui fontes fornecidas pelo cliente. ':'')+(conf.limitacoes&&conf.limitacoes.length?'<br><b>Limitações:</b> '+conf.limitacoes.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria nem consultoria especializada.'+footFontes();
- return docWrap('Relatório de Análise de Empresa',cab.empresa||d.empresa||'Empresa',(cab.setor||d.setor||'')+' · '+(cab.cidade||d.cidade||''),[['Período',cab.periodo||d.periodo||''],['Modo',cab.modo||d.modo||'Completo'],['Modelo IA',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+ return docWrap('Relatório de Análise de Empresa',cab.empresa||d.empresa||'Empresa',(cab.setor||d.setor||'')+' · '+(cab.cidade||d.cidade||''),[['Período',cab.periodo||d.periodo||''],['Modo',cab.modo||d.modo||'Completo'],['Consulta',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
 }
 function relGoverno(r,d){
  var cab=r.cabecalho||{},conf=r.confiabilidade||{},s=[],n=1;function pad(){return ('0'+(n++)).slice(-2);}
@@ -314,7 +383,7 @@ function relGoverno(r,d){
  if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
  var lim=strs(conf.limitacoes);
  var nota='<b>Metodologia FAROL360:</b> a coluna Evidência classifica cada dado (oficial → derivado-estadual → analogia-pares → tendencial → proxy); itens com <span class="star">*</span> são estimativa; sentimento é proxy, não intenção de voto. Sem valores monetários. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria.'+footFontes();
- return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Modelo IA',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+ return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Consulta',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
 }
 function penetPct(t){var s=String(t||'').toLowerCase();if(s.indexOf('alta')>=0)return 88;if(s.indexOf('média')>=0||s.indexOf('media')>=0)return 55;if(s.indexOf('baixa')>=0||s.indexOf('fraca')>=0)return 25;var n=parseNums(t);return n.length?Math.max(0,Math.min(100,n[0])):50;}
 function relPerfil(r,d){
@@ -331,37 +400,114 @@ function relPerfil(r,d){
  if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
  var lim=strs(conf.limitacoes);
  var nota='<b>Metodologia FAROL360:</b> VIS/INT/EMO/IPE são índices de imagem indireta (estimativa), nunca intenção de voto; sinais digitais são proxy; itens com <span class="star">*</span> são estimativa. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui pesquisa registrada.'+footFontes();
- return docWrap('Análise de Figura Pública',cab.figura||d.figura||'Figura Pública',(cab.cargo_partido||'')+(cab.base_geografica?(' · '+cab.base_geografica):''),[['Período',cab.periodo||d.periodo||''],['IPE *',(ind.ipe!=null&&ind.ipe!==''?ind.ipe:'—')+'/100'],['Modelo IA',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+ return docWrap('Análise de Figura Pública',cab.figura||d.figura||'Figura Pública',(cab.cargo_partido||'')+(cab.base_geografica?(' · '+cab.base_geografica):''),[['Período',cab.periodo||d.periodo||''],['IPE *',(ind.ipe!=null&&ind.ipe!==''?ind.ipe:'—')+'/100'],['Consulta',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
 }
 function report(){var r=state.relatorio||{};var d=state.dados;return state.promptId==='governo'?relGoverno(r,d):(state.promptId==='perfil'?relPerfil(r,d):relEmpresa(r,d));}
+// ---- Painel de administração ----
+const ANALISES_META=[['empresa','Empresa'],['governo','Governo'],['perfil','Figura Pública']];
+const adminState={clientes:[],carregando:false,msg:'',erro:'',novoOpen:false};
+function reaisCent(v){var n=parseFloat(v);return isNaN(n)?0:Math.round(n*100);}
+function centReais(c){return ((Number(c)||0)/100).toFixed(2);}
+async function adminApi(acao,extra){
+ const tok=state.cliente&&state.cliente.token;
+ const r=await fetch('/api/admin',{method:'POST',headers:{'content-type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({acao:acao},extra||{}))});
+ if(r.status===401){sair();throw new Error('Sessão expirada.');}
+ const j=await r.json();
+ if(!r.ok||!j.ok)throw new Error((j&&j.erro)||('Erro '+r.status));
+ return j;
+}
+async function adminAbrir(){adminState.erro='';adminState.msg='';adminState.novoOpen=false;adminState.carregando=true;state.view='admin';render();window.scrollTo(0,0);
+ try{const j=await adminApi('listar');adminState.clientes=j.clientes||[];}catch(e){adminState.erro=String(e.message||e);}
+ adminState.carregando=false;if(state.view==='admin')render();}
+async function adminRecarregar(){try{const j=await adminApi('listar');adminState.clientes=j.clientes||[];}catch(e){adminState.erro=String(e.message||e);}if(state.view==='admin')render();}
+function analisesChecks(sel,prefixo){return ANALISES_META.map(function(a){var on=(sel||[]).indexOf(a[0])>=0;return '<label class="chk '+(on?'on':'')+'"><input type="checkbox" data-an="'+prefixo+'" value="'+a[0]+'" '+(on?'checked':'')+'>'+esc(a[1])+'</label>';}).join('');}
+function cliCard(c){var adm=c.papel==='admin';
+ return '<div class="cli" data-id="'+esc(c.id)+'">'+
+  '<div class="cli-h"><div><div class="cli-n">'+esc(c.nome||c.email)+(adm?' <span class="tagpill" style="background:var(--info-soft);color:var(--info)">admin</span>':'')+(c.ativo===false?' <span class="tagpill" style="background:var(--crit-soft);color:var(--crit)">inativo</span>':'')+'</div><div class="cli-e">'+esc(c.email||'')+'</div></div>'+
+   '<div class="cli-saldo">'+saldoBR(c.saldo_centavos)+'</div></div>'+
+  (adm?'<div class="hint">Conta do administrador — sem cobrança.</div>':
+  '<div class="cli-edit"><div class="cli-row"><label class="mini">Saldo (R$)</label><input type="number" step="0.50" min="0" data-cli-saldo value="'+centReais(c.saldo_centavos)+'"><button class="btn ghost sm" data-cli-cred="500">+5</button><button class="btn ghost sm" data-cli-cred="1000">+10</button></div>'+
+   '<div class="cli-row"><label class="mini">Análises liberadas</label><div class="checks">'+analisesChecks(c.analises,'ed')+'</div></div>'+
+   '<div class="cli-row"><label class="chk '+(c.ativo!==false?'on':'')+'"><input type="checkbox" data-cli-ativo '+(c.ativo!==false?'checked':'')+'>Conta ativa</label><span style="flex:1"></span><button class="btn sm" data-cli-save>Salvar</button></div></div>')+
+  '</div>';}
+function admin(){
+ var novo=adminState.novoOpen?('<div class="form-card" style="margin-bottom:16px"><h2>Novo cliente</h2><div class="sub">A senha é definida por você e informada ao cliente.</div>'+
+  '<div class="field"><label>Nome</label><input id="nc_nome" type="text" placeholder="Nome do cliente ou organização"></div>'+
+  '<div class="field"><label>E-mail <span class="req">*</span></label><input id="nc_email" type="email" placeholder="cliente@dominio.com"></div>'+
+  '<div class="field"><label>Senha <span class="req">*</span></label><input id="nc_senha" type="text" placeholder="Mínimo 6 caracteres"></div>'+
+  '<div class="field"><label>Saldo inicial (R$)</label><input id="nc_saldo" type="number" step="0.50" min="0" value="0"></div>'+
+  '<div class="field"><label>Análises liberadas (plano)</label><div class="checks">'+analisesChecks([],'nc')+'</div><div class="hint">Perfil = Figura Pública · Empresarial = Empresa · Político/Gestão = Governo + Figura Pública · Completo = as três.</div></div>'+
+  '<div style="display:flex;gap:8px;margin-top:6px"><button class="btn" id="nc_criar">Criar cliente</button><button class="btn ghost" id="nc_cancelar">Cancelar</button></div></div>'):'';
+ var lista=adminState.carregando?'<div class="loading" style="min-height:30vh"><div><div class="beam">'+farol(40)+'</div><p style="margin-top:10px">Carregando clientes…</p></div></div>':
+  (adminState.clientes.length?'<div class="cli-list">'+adminState.clientes.map(cliCard).join('')+'</div>':'<p style="color:var(--ink-soft)">Nenhum cliente cadastrado ainda.</p>');
+ return '<button class="backlink" data-act="back">'+IC.back+' Catálogo</button>'+
+  '<div class="report-head"><div class="meta"><div class="eyebrow">Administração</div><h1 style="font-size:22px;font-weight:600">Clientes e créditos</h1></div><div class="report-actions"><button class="btn sm" id="ad_novo">+ Novo cliente</button><button class="btn ghost sm" id="ad_recarregar">Atualizar</button></div></div>'+
+  (adminState.erro?'<div class="errbox"><b>Erro.</b>'+esc(adminState.erro)+'</div>':'')+
+  (adminState.msg?'<div class="callout" style="margin-bottom:14px">'+IC.info+'<div>'+esc(adminState.msg)+'</div></div>':'')+
+  novo+lista;
+}
+function coletaAnalises(scope,prefixo){var out=[];(scope||app).querySelectorAll('input[data-an="'+prefixo+'"]:checked').forEach(function(el){out.push(el.value);});return out;}
+function bindAdmin(){
+ var nv=document.getElementById('ad_novo');if(nv)nv.addEventListener('click',function(){adminState.novoOpen=!adminState.novoOpen;adminState.erro='';render();});
+ var rc=document.getElementById('ad_recarregar');if(rc)rc.addEventListener('click',function(){adminState.msg='';adminState.erro='';adminRecarregar();});
+ var cancel=document.getElementById('nc_cancelar');if(cancel)cancel.addEventListener('click',function(){adminState.novoOpen=false;render();});
+ app.querySelectorAll('[data-an]').forEach(function(el){el.addEventListener('change',function(){el.closest('.chk').classList.toggle('on',el.checked);});});
+ var criar=document.getElementById('nc_criar');if(criar)criar.addEventListener('click',async function(){
+  var email=(document.getElementById('nc_email').value||'').trim(),senha=document.getElementById('nc_senha').value||'';
+  if(!email||!senha){adminState.erro='Informe e-mail e senha.';render();return;}
+  criar.disabled=true;criar.textContent='Criando…';
+  try{await adminApi('criar',{nome:document.getElementById('nc_nome').value||'',email:email,senha:senha,saldo_centavos:reaisCent(document.getElementById('nc_saldo').value),analises:coletaAnalises(document,'nc')});
+   adminState.novoOpen=false;adminState.msg='Cliente '+email+' criado.';await adminRecarregar();
+  }catch(e){adminState.erro=String(e.message||e);criar.disabled=false;criar.textContent='Criar cliente';render();}
+ });
+ app.querySelectorAll('[data-cli-save]').forEach(function(btn){btn.addEventListener('click',async function(){
+  var card=btn.closest('.cli'),id=card.dataset.id;
+  btn.disabled=true;btn.textContent='Salvando…';
+  try{await adminApi('atualizar',{id:id,saldo_centavos:reaisCent(card.querySelector('[data-cli-saldo]').value),analises:coletaAnalises(card,'ed'),ativo:card.querySelector('[data-cli-ativo]').checked});
+   adminState.msg='Cliente atualizado.';await adminRecarregar();
+  }catch(e){adminState.erro=String(e.message||e);btn.disabled=false;btn.textContent='Salvar';render();}
+ });});
+ app.querySelectorAll('[data-cli-cred]').forEach(function(btn){btn.addEventListener('click',async function(){
+  var card=btn.closest('.cli'),id=card.dataset.id,delta=Number(btn.dataset.cliCred)||0;
+  btn.disabled=true;
+  try{await adminApi('creditar',{id:id,delta_centavos:delta});adminState.msg='Créditos adicionados.';await adminRecarregar();
+  }catch(e){adminState.erro=String(e.message||e);btn.disabled=false;render();}
+ });});
+}
 function bindCommon(){app.querySelectorAll('[data-act]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.act;
-  if(a==='logout'){state.cliente=null;state.dados={};state.relatorio=null;go('login');}
+  if(a==='logout')sair();
   if(a==='theme')toggleTheme();
+  if(a==='admin'){adminAbrir();}
   if(a==='back'){state.dados={};state.relatorio=null;state.erro=null;go('catalog');}
   if(a==='gerar')gerar();if(a==='pdf')window.print();}));
  app.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{state.promptId=el.dataset.open;state.dados={};state.erro=null;go('form');}));}
 function bindForm(){app.querySelectorAll('[data-f]').forEach(el=>{el.addEventListener('input',()=>state.dados[el.dataset.f]=el.value);el.addEventListener('change',()=>state.dados[el.dataset.f]=el.value);});
  app.querySelectorAll('[data-seg]').forEach(el=>el.addEventListener('click',()=>{state.dados[el.dataset.seg]=el.dataset.val;el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('on'));el.classList.add('on');}));
  app.querySelectorAll('[data-chk]').forEach(el=>el.addEventListener('change',()=>{const f=el.dataset.chk;const a=state.dados[f]||[];if(el.checked){if(!a.includes(el.value))a.push(el.value);}else{const i=a.indexOf(el.value);if(i>=0)a.splice(i,1);}state.dados[f]=a;el.closest('.chk').classList.toggle('on',el.checked);}));
- app.querySelectorAll('[data-mod]').forEach(el=>el.addEventListener('change',()=>{state.modelo=el.value;app.querySelectorAll('.modopt').forEach(m=>m.classList.remove('on'));el.closest('.modopt').classList.add('on');const cv=document.getElementById('cv');if(cv)cv.innerHTML='~R$'+MODELOS[state.modelo].custoRel.toFixed(2)+'<small>/relatório</small>';}));}
+ app.querySelectorAll('[data-mod]').forEach(el=>el.addEventListener('change',()=>{state.modelo=el.value;app.querySelectorAll('.modopt').forEach(m=>m.classList.remove('on'));el.closest('.modopt').classList.add('on');atualizarConsulta();}));}
 async function gerar(){const p=PROMPTS[state.promptId];p.campos.forEach(f=>{if(f.padrao&&!state.dados[f.id])state.dados[f.id]=f.padrao;});
  const falta=p.campos.filter(f=>f.obrig&&!state.dados[f.id]);
  if(falta.length){alert('Preencha: '+falta.map(f=>f.label).join(', '));return;}
+ const tok=state.cliente&&state.cliente.token;if(!tok){sair();return;}
+ const H={'content-type':'application/json','Authorization':'Bearer '+tok};
  state.erro=null;state.fase='Pesquisando dados na web…';go('loading');
  try{
-  const r1=await fetch('/api/pesquisar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo})});
+  const r1=await fetch('/api/pesquisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo})});
+  if(r1.status===401){sair();return;}
   const j1=await r1.json();
   if(!r1.ok||!j1.ok){state.erro=((j1&&j1.erro)||('Erro '+r1.status));go('form');return;}
   state.fontes=j1.fontes||[];
   state.fase='Redigindo o relatório…';go('loading');
-  const r2=await fetch('/api/analisar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo,contexto:j1.contexto||''})});
+  const r2=await fetch('/api/analisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo,contexto:j1.contexto||''})});
+  if(r2.status===401){sair();return;}
   const j2=await r2.json();
   if(!r2.ok||!j2.ok){state.erro=((j2&&j2.erro)||'')+((j2&&j2.detalhe)?(' — detalhe: '+j2.detalhe):'')||('Erro '+r2.status);go('form');return;}
+  if(state.cliente&&typeof j2.saldo==='number')state.cliente.saldo=j2.saldo;
   state.relatorio=j2.relatorio;go('report');
  }catch(e){state.erro='Falha de rede ou servidor: '+String(e);go('form');}
 }
 function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme');const dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',dark?'light':'dark');}
-render();
+restaurarSessao();
 </script>
 </body>
 </html>
