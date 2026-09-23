@@ -16,10 +16,10 @@ export default async function handler(req, res) {
 
     let prompt;
     if (body.promptId === 'governo') {
-      prompt = 'Pesquise na web dados REAIS e atuais para embasar uma AVALIAÇÃO DE GOVERNO. Faça buscas objetivas e reúna fatos verificáveis.\n\n' +
+      prompt = 'Pesquise na web dados REAIS e atuais para embasar uma AVALIAÇÃO DE GOVERNO ampla. Faça VÁRIAS buscas e reúna fatos verificáveis.\n\n' +
         'Município/UF: ' + (d.municipio || '') + '\nInstância: ' + (d.instancia || '') + '\nÁrea: ' + (d.area || '') + '\nPeríodo: ' + (d.periodo || '') + fontesCliente + '\n\n' +
-        'Procure: indicadores oficiais do município na área (IBGE, DataSUS, INEP, SNIS, Siconfi/Tesouro, portal da transparência), comparação com o estado e Brasil, notícias sobre a gestão, e contexto socioeconômico local.\n\n' +
-        'Escreva um resumo objetivo dos ACHADOS em bullets curtos; cada achado com o dado e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 20 linhas. NÃO escreva o relatório — só os achados factuais.';
+        'Procure VÁRIOS indicadores DISTINTOS da área (não só um): valores do município, do estado e do Brasil para benchmarking (IBGE, DataSUS, INEP, SNIS, Siconfi/Tesouro, Atlas do Desenvolvimento, portal da transparência); evolução ao longo dos anos; notícias sobre a gestão; e contexto socioeconômico local.\n\n' +
+        'Escreva um resumo objetivo dos ACHADOS em bullets curtos, cobrindo pelo menos 6 indicadores diferentes; cada achado com o dado, o ano e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 30 linhas. NÃO escreva o relatório — só os achados factuais.';
     } else {
       prompt = 'Pesquise na web dados REAIS e atuais para embasar uma análise da empresa abaixo. Faça buscas objetivas e reúna fatos verificáveis.\n\n' +
         'Empresa: ' + (d.empresa || '') + '\nSetor: ' + (d.setor || '') + '\nCidade: ' + (d.cidade || '') + fontesCliente + '\n\n' +
@@ -27,10 +27,11 @@ export default async function handler(req, res) {
         'Escreva um resumo objetivo dos ACHADOS em bullets curtos; cada achado com o dado e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 20 linhas. NÃO escreva o relatório — só os achados factuais.';
     }
 
-    const deadline = Date.now() + 55000;
+    const maxUses = body.promptId === 'governo' ? 6 : 4;
+    const deadline = Date.now() + 150000;
     const messages = [{ role: 'user', content: prompt }];
     let j = null;
-    for (let it = 0; it < 3; it++) {
+    for (let it = 0; it < 4; it++) {
       const rem = deadline - Date.now();
       if (rem < 4000) break;
       const ac = new AbortController();
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
         r = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST', signal: ac.signal,
           headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: model, max_tokens: 2000, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }], messages: messages }),
+          body: JSON.stringify({ model: model, max_tokens: 2500, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxUses }], messages: messages }),
         });
       } catch (e) { clearTimeout(to); res.status(504).json({ erro: 'A pesquisa na web demorou demais. Tente de novo.' }); return; }
       clearTimeout(to);

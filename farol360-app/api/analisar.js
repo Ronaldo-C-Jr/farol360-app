@@ -2,9 +2,9 @@
 // NÃO pesquisa (isso é a etapa 1). Recebe { dados, modelo, contexto } e devolve o relatório em JSON.
 
 const MODELOS = {
-  haiku:  { id: 'claude-haiku-4-5',  max: 4500 },
-  sonnet: { id: 'claude-sonnet-5',   max: 5000 },
-  opus:   { id: 'claude-opus-4-8',   max: 6000 },
+  haiku:  { id: 'claude-haiku-4-5',  max: 6500 },
+  sonnet: { id: 'claude-sonnet-5',   max: 9000 },
+  opus:   { id: 'claude-opus-4-8',   max: 11000 },
 };
 
 const SYSTEM = `Você é o motor analítico do FAROL360, sistema de inteligência estratégica.
@@ -68,7 +68,7 @@ const SCHEMA_EMPRESA = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "es
 }`;
 
 function promptGoverno(d, contexto) {
-  return `Gere uma AVALIAÇÃO INDIVIDUAL DE GOVERNO.
+  return `Gere uma AVALIAÇÃO INDIVIDUAL DE GOVERNO — ampla, didática e consultiva (não gire em torno de um único indicador).
 
 DADOS:
 - Município/UF: ${d.municipio || '(não informado)'}
@@ -81,24 +81,34 @@ DADOS:
 DADOS PESQUISADOS NA WEB (use como base factual; classifique a evidência conforme a fonte):
 ${contexto ? contexto : '(nenhuma pesquisa disponível — trabalhe com conhecimento do setor público e marque tudo como estimativa)'}
 
-REGRAS ESPECÍFICAS:
-- NUNCA usar valores monetários. Só %, índices ou per capita.
+EXIGÊNCIAS DE AMPLITUDE (obrigatórias):
+- indicadores: NO MÍNIMO 6 indicadores DISTINTOS e relevantes da área (não só um). Cada um com valor do município, do estado e do Brasil (benchmarking), unidade e tendência.
+- temporal: evolução ano a ano no período informado.
+- escalas_ods: pelo menos 4 dimensões pontuadas de 0 a 10.
+- sentimento: percepção por período (nota 0–100).
+- hipoteses: 3+ hipóteses analíticas, cada uma com uma proposta de intervenção prática.
+- resumo_executivo: 5 a 8 bullets consultivos.
+
+REGRAS:
+- NUNCA valores monetários. Só %, índices, per capita ou notas.
 - Cada dado leva "evidencia": oficial | derivado-estadual | analogia-pares | tendencial | proxy.
 - "est":true quando o número for estimativa.
-- Sentimento popular é proxy, nunca intenção de voto.
-- Declarar lacunas; não inventar fontes nem números.`;
+- Sentimento é proxy, nunca intenção de voto. Declarar lacunas; não inventar fontes nem números.`;
 }
 
-const SCHEMA_GOVERNO = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "est":true onde o valor for estimativa):
+const SCHEMA_GOVERNO = `FORMATO JSON OBRIGATÓRIO (preencha TODOS os campos; respeite as quantidades mínimas; "est":true onde o valor for estimativa):
 {
- "cabecalho":{"municipio":"","instancia":"","area":"","periodo_hist":"","periodo_proj":"","confiabilidade_0_100":0,"integridade_0_100":0},
- "indicadores":[{"indicador":"","municipio":"","estado":"","brasil":"","tendencia":"","evidencia":"oficial","est":false}],
+ "cabecalho":{"municipio":"","instancia":"","area":"","periodo_hist":"","periodo_proj":"","eixos_ods":"","confiabilidade_0_100":0,"integridade_0_100":0},
+ "resumo_executivo":["","","","",""],
+ "indicadores":[{"indicador":"","unidade":"","municipio":"","estado":"","brasil":"","tendencia":"","evidencia":"oficial","est":false}],
+ "benchmarking":[{"referencia":"","municipio":"","media":"","diferenca":""}],
+ "temporal":[{"ano":"","fato":"","indicador_ref":""}],
+ "escalas_ods":[{"dimensao":"","meta_ods":"","escore_0_10":0}],
+ "sentimento":[{"periodo":"","polaridade_0_100":0,"leitura":""}],
+ "hipoteses":[{"hipotese":"","proposta":""}],
  "diagnostico":"",
- "linha_tempo":[{"data":"","evento":"","efeito":"","evidencia":"oficial"}],
- "barreiras":[""],
+ "barreiras":["",""],
  "projecoes":[{"ano":"","indicador":"","sem_intervencao":"","com_intervencao":"","est":true}],
- "ods":[{"meta":"","status":"","tendencia":"","evidencia":"oficial"}],
- "sentimento":[{"frase":"","polaridade":"","tema":"","evidencia":"proxy"}],
  "swot":{"forcas":[],"fraquezas":[],"oportunidades":[],"ameacas":[]},
  "gut":[{"problema":"","g":0,"u":0,"t":0,"gut":0,"prioridade":""}],
  "pdca":[{"etapa":"","objetivo":"","indicador":"","prazo":""}],
@@ -129,7 +139,7 @@ export default async function handler(req, res) {
     const userPrompt = base + '\n\nResponda APENAS com o objeto JSON, começando com { e terminando com }. Sem texto antes ou depois, sem cercas de código.';
 
     const ac = new AbortController();
-    const to = setTimeout(() => ac.abort(), 55000);
+    const to = setTimeout(() => ac.abort(), 240000);
     let r;
     try {
       r = await fetch('https://api.anthropic.com/v1/messages', {
