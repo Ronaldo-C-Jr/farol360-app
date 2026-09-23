@@ -160,9 +160,9 @@
   .bars{display:flex;flex-direction:column;gap:9px;margin:2px 0 12px}
   .barrow{display:grid;grid-template-columns:180px 1fr 60px;align-items:center;gap:10px;font-size:12px}
   .barrow .blabel{color:var(--ink);font-weight:500;line-height:1.25}
-  .barrow .btrack{height:14px;background:var(--surface-2);border-radius:4px;position:relative;overflow:hidden}
-  .barrow .bfill{height:100%;border-radius:4px;background:var(--accent)}
-  .brange{position:absolute;top:0;height:100%;background:var(--accent);opacity:.85;border-radius:4px}
+  .btrack{height:14px;background:var(--surface-2);border-radius:4px;position:relative;overflow:hidden}
+  .bfill{height:100%;border-radius:4px;background:var(--accent)}
+  .brange{position:absolute;top:0;left:0;height:100%;background:var(--accent);opacity:.85;border-radius:4px}
   .barrow .bval{font-family:var(--mono);color:var(--ink-soft);text-align:right}
   @media (max-width:520px){.barrow{grid-template-columns:120px 1fr 52px}}
   @media (max-width:780px){.form-grid{grid-template-columns:1fr}.side{position:static}.doc-inner{padding:24px 20px}.swot{grid-template-columns:1fr}.rep-title h1{font-size:21px}}
@@ -199,8 +199,14 @@ const PROMPTS={
      {id:'modo',label:'Profundidade',tipo:'seg',obrig:true,opcoes:['Executivo','Completo'],padrao:'Completo'},
      {id:'topicos',label:'Tópicos adicionais',tipo:'checks',opcoes:['OKR','Benchmarking','Customer Journey','KPI personalizados','Heatmaps de venda','ESG']},
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links, relatórios internos ou observações a considerar…'}]},
-  perfil:{id:'perfil',icone:IC.perfil,base:'figura_publica_v3.0',titulo:'Análise de Figura Pública',versao:'v3.0',ligado:false,
-    subtitulo:'Imagem, popularidade e potencial político',descricao:'Indicadores VIS/INT/EMO/IPE, linha do tempo, SWOT de imagem, públicos, projeções e confiabilidade.'},
+  perfil:{id:'perfil',icone:IC.perfil,base:'figura_publica_v3.0',titulo:'Análise de Figura Pública',versao:'v3.0',ligado:true,
+    subtitulo:'Imagem, popularidade e potencial político',descricao:'Indicadores VIS/INT/EMO/IPE, linha do tempo, SWOT de imagem, públicos, projeções e confiabilidade.',
+    campos:[{id:'figura',label:'Pessoa / figura pública',tipo:'text',obrig:true,placeholder:'Ex.: nome do vereador, prefeito, deputado…'},
+     {id:'periodo',label:'Período da análise',tipo:'text',obrig:true,placeholder:'Ex.: jan–set/2026'},
+     {id:'tipo',label:'Tipo de diagnóstico',tipo:'seg',obrig:true,opcoes:['Político','Social','Ambos'],padrao:'Ambos'},
+     {id:'tags',label:'TAGs / temas centrais',tipo:'checks',opcoes:['Mandato','Popularidade','Base eleitoral','Imagem pública','Gestão de crises','Influência regional']},
+     {id:'avancado',label:'Opções avançadas',tipo:'checks',opcoes:['Perfil sociodemográfico','Emoções por evento','Comparativo regional','Simulação de alianças']},
+     {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links de notícias, redes oficiais, pesquisas ou observações a considerar…'}]},
   governo:{id:'governo',icone:IC.governo,base:'governo_v2.9.0',titulo:'Avaliação de Governo',versao:'v2.9.0',ligado:true,
     subtitulo:'Município, estado ou federal',descricao:'13 seções com nível de evidência, linha do tempo, ODS, SWOT, GUT e PDCA — estimativa transparente.',
     campos:[{id:'municipio',label:'Município / UF',tipo:'text',obrig:true,placeholder:'Ex.: Vitória da Conquista - BA'},
@@ -214,7 +220,7 @@ const app=document.getElementById('app');
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function go(v){state.view=v;render();const m=document.querySelector('.main');if(m)m.scrollTo(0,0);window.scrollTo(0,0);}
 function render(){if(state.view==='login')return renderLogin();app.innerHTML=shell(body());bindCommon();if(state.view==='form')bindForm();}
-function shell(b){const c=state.cliente;return '<div class="demo-bar">'+farol(14)+' <span>Empresa e Governo usam a IA de verdade, com busca na web. Figura Pública entra em seguida.</span></div>'+
+function shell(b){const c=state.cliente;return '<div class="demo-bar">'+farol(14)+' <span>As três análises usam a IA de verdade, com busca na web. Login e histórico entram em seguida.</span></div>'+
  '<div class="topbar"><div class="brand">'+farol(26)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div><div class="spacer"></div>'+
  '<div class="who"><div class="n">'+esc(c&&c.nome||'')+'</div><div class="c">'+esc(c&&c.org||'')+'</div></div>'+
  '<button class="iconbtn" data-act="theme" title="Tema"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>'+
@@ -310,7 +316,24 @@ function relGoverno(r,d){
  var nota='<b>Metodologia FAROL360:</b> a coluna Evidência classifica cada dado (oficial → derivado-estadual → analogia-pares → tendencial → proxy); itens com <span class="star">*</span> são estimativa; sentimento é proxy, não intenção de voto. Sem valores monetários. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria.'+footFontes();
  return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Modelo IA',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
 }
-function report(){var r=state.relatorio||{};var d=state.dados;return state.promptId==='governo'?relGoverno(r,d):relEmpresa(r,d);}
+function penetPct(t){var s=String(t||'').toLowerCase();if(s.indexOf('alta')>=0)return 88;if(s.indexOf('média')>=0||s.indexOf('media')>=0)return 55;if(s.indexOf('baixa')>=0||s.indexOf('fraca')>=0)return 25;var n=parseNums(t);return n.length?Math.max(0,Math.min(100,n[0])):50;}
+function relPerfil(r,d){
+ var cab=r.cabecalho||{},conf=r.confiabilidade||{},ind=r.indicadores||{},perf=r.perfil||{},s=[],n=1;function pad(){return ('0'+(n++)).slice(-2);}
+ s.push(sec(pad(),'Indicadores de imagem',metersRow([['VIS · Visibilidade',ind.vis],['INT · Interesse',ind.int],['EMO · Sentimento',ind.emo],['IPE · Popularidade',ind.ipe]])+'<div class="callout">'+IC.info+'<div>VIS/INT/EMO/IPE são <b>índices de imagem indireta</b>, sempre estimados <span class="star">*</span>. Não são intenção de voto nem aprovação estatística.</div></div>'));
+ var pf=[];if(limpo(perf.formacao_trajetoria))pf.push('<li><b>Formação e trajetória:</b> '+esc(perf.formacao_trajetoria)+'</li>');if(limpo(perf.imagem_percebida))pf.push('<li><b>Imagem percebida:</b> '+esc(perf.imagem_percebida)+'</li>');if(limpo(perf.publicos_apelo))pf.push('<li><b>Públicos de maior apelo:</b> '+esc(perf.publicos_apelo)+'</li>');
+ if(pf.length)s.push(sec(pad(),'Perfil consolidado','<div class="resumo"><ul>'+pf.join('')+'</ul></div>'));
+ var lt=filtra(r.linha_tempo,['marco','evento']);if(lt.length)s.push(sec(pad(),'Linha do tempo de eventos',tbl(['Marco','Evento','Emoção dominante'],lt.map(function(x){return '<tr><td class="num-c">'+esc(x.marco||'')+'</td><td>'+esc(x.evento||'')+'</td><td>'+esc(x.emocao||'')+'</td></tr>';}).join(''))));
+ var sw=r.swot||{},temSwot=(strs(sw.forcas).length+strs(sw.fraquezas).length+strs(sw.oportunidades).length+strs(sw.ameacas).length)>0;
+ if(temSwot)s.push(sec(pad(),'SWOT de imagem',swotBox(sw)));
+ var pub=filtra(r.publicos,['segmento']);if(pub.length)s.push(sec(pad(),'Públicos e penetração',barsBlock(pub.map(function(x){var p=penetPct(x.penetracao);return {label:x.segmento,pct:p,val:x.penetracao||(p+'/100'),tone:(p>=70?'var(--good)':(p<40?'var(--crit)':'var(--mod)'))};}))+tbl(['Segmento','Penetração','Tendência'],pub.map(function(x){return '<tr><td><b>'+esc(x.segmento)+star(x.est)+'</b></td><td>'+esc(x.penetracao||'')+'</td><td>'+esc(x.tendencia||'')+'</td></tr>';}).join(''))));
+ var pj=filtra(r.projecoes,['cenario','descricao']);if(pj.length)s.push(sec(pad(),'Projeções estratégicas',tbl(['Cenário','Leitura'],pj.map(function(x){return '<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td>'+esc(x.descricao)+'</td></tr>';}).join(''))));
+ var al=filtra(r.aliancas,['figura']);if(al.length)s.push(sec(pad(),'Simulação de alianças',tbl(['Figura','Efeito no IPE','Risco'],al.map(function(x){return '<tr><td><b>'+esc(x.figura)+'</b></td><td>'+esc(x.efeito_ipe||'')+'</td><td>'+esc(x.risco||'')+'</td></tr>';}).join(''))));
+ if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
+ var lim=strs(conf.limitacoes);
+ var nota='<b>Metodologia FAROL360:</b> VIS/INT/EMO/IPE são índices de imagem indireta (estimativa), nunca intenção de voto; sinais digitais são proxy; itens com <span class="star">*</span> são estimativa. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui pesquisa registrada.'+footFontes();
+ return docWrap('Análise de Figura Pública',cab.figura||d.figura||'Figura Pública',(cab.cargo_partido||'')+(cab.base_geografica?(' · '+cab.base_geografica):''),[['Período',cab.periodo||d.periodo||''],['IPE *',(ind.ipe!=null&&ind.ipe!==''?ind.ipe:'—')+'/100'],['Modelo IA',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+}
+function report(){var r=state.relatorio||{};var d=state.dados;return state.promptId==='governo'?relGoverno(r,d):(state.promptId==='perfil'?relPerfil(r,d):relEmpresa(r,d));}
 function bindCommon(){app.querySelectorAll('[data-act]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.act;
   if(a==='logout'){state.cliente=null;state.dados={};state.relatorio=null;go('login');}
   if(a==='theme')toggleTheme();
