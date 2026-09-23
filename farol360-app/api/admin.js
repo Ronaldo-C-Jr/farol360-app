@@ -1,10 +1,16 @@
-// FAROL360 — Administração. Rota: POST /api/admin
-// Só o administrador (perfis.papel = 'admin') pode usar. Cria clientes, ajusta saldo,
-// define plano (análises liberadas) e ativa/desativa. Tudo com a chave secreta (service_role).
+// FAROL360 — Etapa 2: redige o relatório. Rota: POST /api/analisar
+// NÃO pesquisa (isso é a etapa 1). Recebe { dados, modelo, contexto } e devolve o relatório em JSON.
 
+const MODELOS = {
+  haiku:  { id: 'claude-haiku-4-5',  max: 6500 },
+  sonnet: { id: 'claude-sonnet-5',   max: 9000 },
+  opus:   { id: 'claude-opus-4-8',   max: 11000 },
+};
+
+const PRECO_CENT = { haiku: 50, sonnet: 100, opus: 150 };
 const SB_URL = process.env.SUPABASE_URL || 'https://xjifquevscvkdhnjxqkh.supabase.co';
-const ANALISES_VALIDAS = ['empresa', 'governo', 'perfil'];
 
+// Valida o token do usuário e devolve o id, ou null.
 async function sbUserId(token) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   if (!svc || !token) return null;
@@ -15,123 +21,262 @@ async function sbUserId(token) {
     return (j && j.id) ? j.id : null;
   } catch (e) { return null; }
 }
-
-function svcHeaders() {
+// Lê o perfil (service_role, ignora RLS).
+async function sbPerfil(uid) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
-  return { apikey: svc, Authorization: 'Bearer ' + svc, 'content-type': 'application/json' };
-}
-
-async function perfilDe(uid) {
   try {
-    const r = await fetch(SB_URL + '/rest/v1/perfis?select=id,nome,email,papel,ativo,saldo_centavos,analises,criado_em&id=eq.' + uid, { headers: svcHeaders() });
+    const r = await fetch(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
     if (!r.ok) return null;
     const j = await r.json();
     return (Array.isArray(j) && j[0]) ? j[0] : null;
   } catch (e) { return null; }
 }
+// Débito atômico + registro do relatório. Devolve { ok, saldo, erro }.
+async function sbDebitar(uid, tipo, consulta, preco, titulo) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/rpc/debitar_e_registrar', {
+      method: 'POST',
+      headers: { apikey: svc, Authorization: 'Bearer ' + svc, 'content-type': 'application/json' },
+      body: JSON.stringify({ p_user: uid, p_tipo: tipo, p_consulta: consulta, p_preco: preco, p_titulo: titulo }),
+    });
+    const j = await r.json();
+    return j || { ok: false };
+  } catch (e) { return { ok: false, erro: String(e) }; }
+}
+function tituloDe(promptId, d) {
+  if (promptId === 'governo') return d.municipio || 'Avaliação de Governo';
+  if (promptId === 'perfil') return d.figura || 'Figura Pública';
+  return d.empresa || 'Empresa';
+}
 
-function limpaAnalises(a) {
-  if (!Array.isArray(a)) return [];
-  return a.filter(function (x) { return ANALISES_VALIDAS.indexOf(x) >= 0; });
+const SYSTEM = `Você é o motor analítico do FAROL360, sistema de inteligência estratégica.
+Produza análise rigorosa, consultiva e auditável, seguindo regras inegociáveis.
+
+CLASSIFICAÇÃO DA EVIDÊNCIA — todo dado carrega sua natureza:
+- OFICIAL: fonte oficial verificável.
+- DERIVADO: calculado a partir de base oficial.
+- ANALOGIA: inferido de casos/pares comparáveis.
+- PROXY: sinal indireto (digital, notícia) — nunca medida direta.
+- ESTIMATIVA/INFERÊNCIA: conclusão não observada.
+
+REGRAS:
+1. Todo número não observado é estimativa: marque o campo "est": true.
+2. Use os DADOS PESQUISADOS fornecidos como base factual; quando um número vier deles, é observado (est:false) e a evidência é a fonte real.
+3. Nunca apresente proxy ou índice de imagem como intenção de voto nem como fato oficial.
+4. Lacuna de dado é declarada — nunca preenchida com suposição decorativa.
+5. Fonte enviada pelo cliente NÃO é oficial automaticamente: classifique-a.
+6. Não invente fontes, números ou citações.
+7. Tom consultivo: responda ao "e daí?", com implicações práticas.
+8. NUNCA use "N/A", "não aplicável", "não disponível" nem linhas em branco. Se não houver dado real para um item ou uma seção inteira, retorne lista vazia [] ou string vazia — o sistema esconde o que estiver vazio.
+9. Responda EXCLUSIVAMENTE com um objeto JSON válido no formato pedido. Sem texto fora do JSON. Frases curtas.
+10. Se o cliente forneceu detalhes ou pedidos específicos (comparações, gráficos, recortes), incorpore-os às seções e tabelas correspondentes do formato — sem inventar dados e sem criar campos fora do schema.`;
+
+function promptEmpresa(d, contexto) {
+  const topicos = Array.isArray(d.topicos) ? d.topicos.join(', ') : (d.topicos || 'nenhum');
+  return `Gere uma ANÁLISE ESTRATÉGICA DE EMPRESA.
+
+DADOS:
+- Empresa: ${d.empresa || '(não informado)'}
+- Setor: ${d.setor || '(não informado)'}
+- Cidade/sede: ${d.cidade || '(não informado)'}
+- Período: ${d.periodo || 'últimos 3 anos'}
+- Modo: ${d.modo || 'Completo'}
+- Tópicos adicionais: ${topicos}
+- Fontes próprias do cliente: ${d.fontes ? d.fontes : 'nenhuma'} (classificar; não tratar como oficiais)
+- Detalhes e pedidos do cliente: ${d.extras ? d.extras : 'nenhum'} (use como contexto; se houver pedido de comparação, gráfico ou recorte, atenda-o nas seções e tabelas correspondentes, dentro da metodologia)
+
+DADOS PESQUISADOS NA WEB (use como base factual; classifique a evidência conforme a fonte):
+${contexto ? contexto : '(nenhuma pesquisa disponível — trabalhe com conhecimento do setor e marque tudo como estimativa)'}
+
+REGRAS ESPECÍFICAS:
+- NUNCA usar valores monetários. Só percentuais, índices ou números relativos.
+- KPIs sempre em faixa (P5–P95).
+- Explicar cada sigla no primeiro uso.
+- Todo indicador gera recomendação prática.
+- Incluir sempre o One Pager executivo.`;
+}
+
+const SCHEMA_EMPRESA = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "est":true onde o valor for estimativa):
+{
+ "cabecalho":{"empresa":"","setor":"","cidade":"","periodo":"","modo":"","confiabilidade_0_100":0},
+ "one_pager":{"indice_competitividade":{"valor":0,"est":true},
+   "kpis_topo":[{"nome":"","faixa":"","est":true}],
+   "cenario_base_12m":{"texto":"","est":true},"conclusao_consultiva":""},
+ "pestel":[{"fator":"","leitura":"","implicacao":"","evidencia":"proxy"}],
+ "competitivo":{"porter":"","vrio":"",
+   "swot":{"forcas":[],"fraquezas":[],"oportunidades":[],"ameacas":[]}},
+ "kpis":[{"nome":"","faixa_p5_p95":"","interpretacao":"","recomendacao":"","est":true}],
+ "clientes_segmentos":[{"segmento":"","participacao":"","leitura":"","est":true}],
+ "projecoes_12m":[{"cenario":"","receita_relativa":"","margem":"","leitura":"","est":true}],
+ "roadmap":[{"horizonte":"","acao":""}],
+ "confiabilidade":{"nota_0_100":0,"limitacoes":[],"fontes_cliente_consideradas":false}
+}`;
+
+function promptGoverno(d, contexto) {
+  return `Gere uma AVALIAÇÃO INDIVIDUAL DE GOVERNO — ampla, didática e consultiva (não gire em torno de um único indicador).
+
+DADOS:
+- Município/UF: ${d.municipio || '(não informado)'}
+- Instância: ${d.instancia || '(não informado)'}
+- Área temática: ${d.area || 'Geral'}
+- Período histórico: ${d.periodo || 'últimos anos'}
+- Período de projeção: ${d.projecao || 'sem projeção'}
+- Fontes próprias do cliente: ${d.fontes ? d.fontes : 'nenhuma'} (classificar; não tratar como oficiais)
+- Detalhes e pedidos do cliente: ${d.extras ? d.extras : 'nenhum'} (use como contexto; se houver pedido de comparação, gráfico ou recorte, atenda-o nas seções e tabelas correspondentes, dentro da metodologia)
+
+DADOS PESQUISADOS NA WEB (use como base factual; classifique a evidência conforme a fonte):
+${contexto ? contexto : '(nenhuma pesquisa disponível — trabalhe com conhecimento do setor público e marque tudo como estimativa)'}
+
+EXIGÊNCIAS DE AMPLITUDE (obrigatórias):
+- indicadores: NO MÍNIMO 6 indicadores DISTINTOS e relevantes da área (não só um). Cada um com valor do município, do estado e do Brasil (benchmarking), unidade e tendência.
+- temporal: evolução ano a ano no período informado.
+- escalas_ods: pelo menos 4 dimensões pontuadas de 0 a 10.
+- sentimento: percepção por período (nota 0–100).
+- hipoteses: 3+ hipóteses analíticas, cada uma com uma proposta de intervenção prática.
+- resumo_executivo: 5 a 8 bullets consultivos.
+
+REGRAS:
+- NUNCA valores monetários. Só %, índices, per capita ou notas.
+- Cada dado leva "evidencia": oficial | derivado-estadual | analogia-pares | tendencial | proxy.
+- "est":true quando o número for estimativa.
+- Sentimento é proxy, nunca intenção de voto. Declarar lacunas; não inventar fontes nem números.
+- Se o período de projeção for "Sem projeção" ou não solicitado, retorne "projecoes": []. Não invente projeções.
+- Preencha cada seção só com dados reais; seção sem dado = lista vazia []. Nada de "N/A" ou "não aplicável".`;
+}
+
+const SCHEMA_GOVERNO = `FORMATO JSON OBRIGATÓRIO (preencha TODOS os campos; respeite as quantidades mínimas; "est":true onde o valor for estimativa):
+{
+ "cabecalho":{"municipio":"","instancia":"","area":"","periodo_hist":"","periodo_proj":"","eixos_ods":"","confiabilidade_0_100":0,"integridade_0_100":0},
+ "resumo_executivo":["","","","",""],
+ "indicadores":[{"indicador":"","unidade":"","municipio":"","estado":"","brasil":"","tendencia":"","evidencia":"oficial","est":false}],
+ "benchmarking":[{"referencia":"","municipio":"","media":"","diferenca":""}],
+ "temporal":[{"ano":"","fato":"","indicador_ref":""}],
+ "escalas_ods":[{"dimensao":"","meta_ods":"","escore_0_10":0}],
+ "sentimento":[{"periodo":"","polaridade_0_100":0,"leitura":""}],
+ "hipoteses":[{"hipotese":"","proposta":""}],
+ "diagnostico":"",
+ "barreiras":["",""],
+ "projecoes":[{"ano":"","indicador":"","sem_intervencao":"","com_intervencao":"","est":true}],
+ "swot":{"forcas":[],"fraquezas":[],"oportunidades":[],"ameacas":[]},
+ "gut":[{"problema":"","g":0,"u":0,"t":0,"gut":0,"prioridade":""}],
+ "pdca":[{"etapa":"","objetivo":"","indicador":"","prazo":""}],
+ "conclusao":"",
+ "confiabilidade":{"nota_0_100":0,"limitacoes":[]}
+}`;
+
+function promptPerfil(d, contexto) {
+  const tags = Array.isArray(d.tags) ? d.tags.join(', ') : (d.tags || '');
+  const av = Array.isArray(d.avancado) ? d.avancado.join(', ') : (d.avancado || '');
+  return `Gere uma ANÁLISE DE FIGURA PÚBLICA — 360°, técnica e sociológica, didática e consultiva.
+
+DADOS:
+- Figura: ${d.figura || '(não informado)'}
+- Período: ${d.periodo || ''}
+- Tipo de diagnóstico: ${d.tipo || 'Ambos'}
+- TAGs/temas: ${tags || '—'}
+- Opções avançadas: ${av || '—'}
+- Fontes próprias do cliente: ${d.fontes ? d.fontes : 'nenhuma'} (classificar; não tratar como oficiais)
+- Detalhes e pedidos do cliente: ${d.extras ? d.extras : 'nenhum'} (use como contexto; se houver pedido de comparação, gráfico ou recorte, atenda-o nas seções e tabelas correspondentes, dentro da metodologia)
+
+DADOS PESQUISADOS NA WEB (use como base factual; classifique a evidência conforme a fonte):
+${contexto ? contexto : '(sem pesquisa — marque tudo como estimativa)'}
+
+INDICADORES (todos 0–100, SEMPRE estimativas de imagem indireta):
+- VIS (Visibilidade), INT (Interesse temático), EMO (Sentimento: 0 neg, 100 pos), IPE (Popularidade estimada, composto).
+
+REGRAS:
+- IPE/VIS/INT/EMO são índices de IMAGEM indireta, NUNCA intenção de voto nem aprovação estatística.
+- Sinais digitais e notícias são proxy. Projeções são tendência estimada — NÃO alegar "previsão neural" nem modelos que não executa.
+- Não inventar fontes/números; declarar lacunas.
+- Sem "N/A"/linha em branco: seção sem dado = lista vazia [].`;
+}
+
+const SCHEMA_PERFIL = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "est":true onde for estimativa):
+{
+ "cabecalho":{"figura":"","cargo_partido":"","base_geografica":"","periodo":"","confiabilidade_0_100":0},
+ "perfil":{"formacao_trajetoria":"","imagem_percebida":"","publicos_apelo":""},
+ "indicadores":{"vis":0,"int":0,"emo":0,"ipe":0},
+ "linha_tempo":[{"marco":"","evento":"","emocao":""}],
+ "swot":{"forcas":[],"fraquezas":[],"oportunidades":[],"ameacas":[]},
+ "publicos":[{"segmento":"","penetracao":"","tendencia":"","est":true}],
+ "projecoes":[{"cenario":"","descricao":"","est":true}],
+ "aliancas":[{"figura":"","efeito_ipe":"","risco":""}],
+ "conclusao":"",
+ "confiabilidade":{"nota_0_100":0,"limitacoes":[]}
+}`;
+
+function extrairJSON(txt) {
+  let s = String(txt).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/,'').trim();
+  const i = s.indexOf('{'); const j = s.lastIndexOf('}');
+  return (i >= 0 && j > i) ? s.slice(i, j + 1) : s;
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ erro: 'Use POST.' }); return; }
-  if (!process.env.SUPABASE_SERVICE_ROLE) { res.status(500).json({ erro: 'SUPABASE_SERVICE_ROLE não configurada no servidor.' }); return; }
-
-  // --- Autentica e exige papel admin ---
-  const auth = req.headers && (req.headers.authorization || req.headers.Authorization) || '';
-  const token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
-  const uid = await sbUserId(token);
-  if (!uid) { res.status(401).json({ erro: 'Sessão expirada. Faça login novamente.' }); return; }
-  const eu = await perfilDe(uid);
-  if (!eu || eu.papel !== 'admin') { res.status(403).json({ erro: 'Acesso restrito ao administrador.' }); return; }
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) { res.status(500).json({ erro: 'ANTHROPIC_API_KEY não configurada no servidor.' }); return; }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const acao = body.acao || 'listar';
+    const { promptId = 'empresa', dados = {}, modelo = 'sonnet', contexto = '' } = body;
+    if (promptId !== 'empresa' && promptId !== 'governo' && promptId !== 'perfil') { res.status(400).json({ erro: 'Análise não reconhecida.' }); return; }
 
-    // ---- LISTAR ----
-    if (acao === 'listar') {
-      const r = await fetch(SB_URL + '/rest/v1/perfis?select=id,nome,email,papel,ativo,saldo_centavos,analises,criado_em&order=criado_em.desc', { headers: svcHeaders() });
-      if (!r.ok) { const t = await r.text(); res.status(502).json({ erro: 'Falha ao listar (HTTP ' + r.status + ').', detalhe: t.slice(0, 200) }); return; }
-      const lista = await r.json();
-      res.status(200).json({ ok: true, clientes: Array.isArray(lista) ? lista : [] });
+    // --- Autenticação + verificação de saldo/acesso ---
+    const auth = req.headers && (req.headers.authorization || req.headers.Authorization) || '';
+    const token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
+    const uid = await sbUserId(token);
+    if (!uid) { res.status(401).json({ erro: 'Sessão expirada. Faça login novamente.' }); return; }
+    const preco = PRECO_CENT[modelo] || PRECO_CENT.sonnet;
+    const perfil = await sbPerfil(uid);
+    if (!perfil) { res.status(403).json({ erro: 'Perfil não encontrado. Contate o administrador.' }); return; }
+    if (perfil.ativo === false) { res.status(403).json({ erro: 'Conta inativa. Contate o administrador.' }); return; }
+    if (!Array.isArray(perfil.analises) || perfil.analises.indexOf(promptId) < 0) { res.status(403).json({ erro: 'Esta análise não está liberada no seu acesso.' }); return; }
+    if ((Number(perfil.saldo_centavos) || 0) < preco) { res.status(402).json({ erro: 'Saldo insuficiente para esta consulta. Solicite mais créditos ao administrador.' }); return; }
+
+    const m = MODELOS[modelo] || MODELOS.sonnet;
+    const base = promptId === 'governo'
+      ? promptGoverno(dados, contexto) + '\n\n' + SCHEMA_GOVERNO
+      : promptId === 'perfil'
+        ? promptPerfil(dados, contexto) + '\n\n' + SCHEMA_PERFIL
+        : promptEmpresa(dados, contexto) + '\n\n' + SCHEMA_EMPRESA;
+    const userPrompt = base + '\n\nResponda APENAS com o objeto JSON, começando com { e terminando com }. Sem texto antes ou depois, sem cercas de código.';
+
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort(), 240000);
+    let r;
+    try {
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal: ac.signal,
+        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: m.id, max_tokens: m.max, system: SYSTEM, messages: [{ role: 'user', content: userPrompt }] }),
+      });
+    } catch (e) { clearTimeout(to); res.status(504).json({ erro: 'A redação do relatório demorou demais. Tente de novo, ou use o modelo Haiku.' }); return; }
+    clearTimeout(to);
+
+    if (!r.ok) {
+      const t = await r.text();
+      console.error('Anthropic HTTP', r.status, t);
+      res.status(502).json({ erro: 'A IA recusou a chamada (HTTP ' + r.status + '): ' + t.slice(0, 400), detalhe: t.slice(0, 400) });
       return;
     }
-
-    // ---- CRIAR ----
-    if (acao === 'criar') {
-      const email = String(body.email || '').trim().toLowerCase();
-      const senha = String(body.senha || '');
-      const nome = String(body.nome || '').trim() || email;
-      const saldo = Math.max(0, Math.round(Number(body.saldo_centavos) || 0));
-      const analises = limpaAnalises(body.analises);
-      if (!email || !senha) { res.status(400).json({ erro: 'Informe e-mail e senha.' }); return; }
-      if (senha.length < 6) { res.status(400).json({ erro: 'A senha precisa ter ao menos 6 caracteres.' }); return; }
-
-      // cria o usuário de autenticação (o gatilho cria o perfil automaticamente)
-      const rc = await fetch(SB_URL + '/auth/v1/admin/users', {
-        method: 'POST', headers: svcHeaders(),
-        body: JSON.stringify({ email: email, password: senha, email_confirm: true }),
-      });
-      const jc = await rc.json();
-      if (!rc.ok || !jc.id) {
-        const msg = (jc && (jc.msg || jc.error_description || jc.error || jc.message)) || ('HTTP ' + rc.status);
-        res.status(400).json({ erro: 'Não foi possível criar o cliente: ' + msg });
-        return;
-      }
-      // completa o perfil (nome, saldo, plano)
-      const rp = await fetch(SB_URL + '/rest/v1/perfis?id=eq.' + jc.id, {
-        method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, svcHeaders()),
-        body: JSON.stringify({ nome: nome, saldo_centavos: saldo, analises: analises, ativo: true }),
-      });
-      const jp = await rp.json();
-      if (!rp.ok) { res.status(502).json({ erro: 'Cliente criado, mas falhou ao definir saldo/plano. Ajuste na lista.', detalhe: JSON.stringify(jp).slice(0, 200) }); return; }
-      res.status(200).json({ ok: true, cliente: Array.isArray(jp) ? jp[0] : jp });
+    const j = await r.json();
+    const texto = (Array.isArray(j.content) ? j.content.map(function (b) { return (b && typeof b.text === 'string') ? b.text : ''; }).join('') : '').trim();
+    if (!texto) {
+      res.status(502).json({ erro: 'A IA retornou conteúdo vazio (stop_reason=' + (j.stop_reason || '?') + ').' });
       return;
     }
-
-    // ---- ATUALIZAR (saldo, plano, ativo, nome) ----
-    if (acao === 'atualizar') {
-      const id = String(body.id || '');
-      if (!id) { res.status(400).json({ erro: 'Cliente não informado.' }); return; }
-      const patch = {};
-      if (body.saldo_centavos != null) patch.saldo_centavos = Math.max(0, Math.round(Number(body.saldo_centavos) || 0));
-      if (body.analises != null) patch.analises = limpaAnalises(body.analises);
-      if (body.ativo != null) patch.ativo = !!body.ativo;
-      if (body.nome != null) patch.nome = String(body.nome).trim();
-      if (!Object.keys(patch).length) { res.status(400).json({ erro: 'Nada para atualizar.' }); return; }
-      const r = await fetch(SB_URL + '/rest/v1/perfis?id=eq.' + id, {
-        method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, svcHeaders()),
-        body: JSON.stringify(patch),
-      });
-      const j = await r.json();
-      if (!r.ok) { res.status(502).json({ erro: 'Falha ao atualizar.', detalhe: JSON.stringify(j).slice(0, 200) }); return; }
-      res.status(200).json({ ok: true, cliente: Array.isArray(j) ? j[0] : j });
+    let relatorio;
+    try { relatorio = JSON.parse(extrairJSON(texto)); }
+    catch (e) {
+      res.status(502).json({ erro: 'A IA não devolveu JSON válido (stop_reason=' + (j.stop_reason || '?') + '). Início: ' + texto.slice(0, 160) + ' […] Fim: ' + texto.slice(-160) });
       return;
     }
-
-    // ---- CREDITAR (soma ao saldo atual) ----
-    if (acao === 'creditar') {
-      const id = String(body.id || '');
-      const delta = Math.round(Number(body.delta_centavos) || 0);
-      if (!id || !delta) { res.status(400).json({ erro: 'Informe cliente e valor.' }); return; }
-      const atual = await perfilDe(id);
-      if (!atual) { res.status(404).json({ erro: 'Cliente não encontrado.' }); return; }
-      const novo = Math.max(0, (Number(atual.saldo_centavos) || 0) + delta);
-      const r = await fetch(SB_URL + '/rest/v1/perfis?id=eq.' + id, {
-        method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, svcHeaders()),
-        body: JSON.stringify({ saldo_centavos: novo }),
-      });
-      const j = await r.json();
-      if (!r.ok) { res.status(502).json({ erro: 'Falha ao creditar.', detalhe: JSON.stringify(j).slice(0, 200) }); return; }
-      res.status(200).json({ ok: true, cliente: Array.isArray(j) ? j[0] : j });
-      return;
-    }
-
-    res.status(400).json({ erro: 'Ação não reconhecida.' });
+    // --- Débito atômico + registro (relatório já gerado com sucesso) ---
+    const deb = await sbDebitar(uid, promptId, modelo, preco, tituloDe(promptId, dados));
+    const saldo = (deb && typeof deb.saldo === 'number') ? deb.saldo : undefined;
+    res.status(200).json({ ok: true, relatorio, saldo: saldo, uso: j.usage || null, modelo: m.id });
   } catch (e) {
-    res.status(500).json({ erro: 'Falha interna do administrador.', detalhe: String(e).slice(0, 300) });
+    res.status(500).json({ erro: 'Falha interna do servidor.', detalhe: String(e).slice(0, 300) });
   }
 }
