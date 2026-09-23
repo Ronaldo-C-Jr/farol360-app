@@ -30,21 +30,22 @@ export default async function handler(req, res) {
     const d = body.dados || {};
     const model = MODELOS[body.modelo] || MODELOS.sonnet;
     const fontesCliente = d.fontes ? ('\nFontes indicadas pelo cliente: ' + d.fontes) : '';
+    const extrasCliente = d.extras ? ('\nDetalhes fornecidos pelo cliente (use para orientar a busca): ' + d.extras) : '';
 
     let prompt;
     if (body.promptId === 'governo') {
       prompt = 'Pesquise na web dados REAIS e atuais para embasar uma AVALIAÇÃO DE GOVERNO ampla. Faça VÁRIAS buscas e reúna fatos verificáveis.\n\n' +
-        'Município/UF: ' + (d.municipio || '') + '\nInstância: ' + (d.instancia || '') + '\nÁrea: ' + (d.area || '') + '\nPeríodo: ' + (d.periodo || '') + fontesCliente + '\n\n' +
+        'Município/UF: ' + (d.municipio || '') + '\nInstância: ' + (d.instancia || '') + '\nÁrea: ' + (d.area || '') + '\nPeríodo: ' + (d.periodo || '') + fontesCliente + extrasCliente + '\n\n' +
         'Procure VÁRIOS indicadores DISTINTOS da área (não só um): valores do município, do estado e do Brasil para benchmarking (IBGE, DataSUS, INEP, SNIS, Siconfi/Tesouro, Atlas do Desenvolvimento, portal da transparência); evolução ao longo dos anos; notícias sobre a gestão; e contexto socioeconômico local.\n\n' +
         'Escreva um resumo objetivo dos ACHADOS em bullets curtos, cobrindo pelo menos 6 indicadores diferentes; cada achado com o dado, o ano e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 30 linhas. NÃO escreva o relatório — só os achados factuais.';
     } else if (body.promptId === 'perfil') {
       prompt = 'Pesquise na web dados REAIS e atuais sobre a figura pública abaixo. Faça buscas objetivas e reúna fatos verificáveis.\n\n' +
-        'Figura: ' + (d.figura || '') + '\nPeríodo: ' + (d.periodo || '') + fontesCliente + '\n\n' +
+        'Figura: ' + (d.figura || '') + '\nPeríodo: ' + (d.periodo || '') + fontesCliente + extrasCliente + '\n\n' +
         'Procure: cargo/partido, mandatos e tentativas, votação e ranking na última eleição, base geográfica de apoio, formação e trajetória, principais bandeiras/temas, presença em redes e notícias, e controvérsias públicas (com neutralidade).\n\n' +
         'Escreva um resumo objetivo dos ACHADOS em bullets curtos; cada achado com o dado e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 25 linhas. NÃO escreva o relatório — só os achados factuais.';
     } else {
       prompt = 'Pesquise na web dados REAIS e atuais para embasar uma análise da empresa abaixo. Faça buscas objetivas e reúna fatos verificáveis.\n\n' +
-        'Empresa: ' + (d.empresa || '') + '\nSetor: ' + (d.setor || '') + '\nCidade: ' + (d.cidade || '') + fontesCliente + '\n\n' +
+        'Empresa: ' + (d.empresa || '') + '\nSetor: ' + (d.setor || '') + '\nCidade: ' + (d.cidade || '') + fontesCliente + extrasCliente + '\n\n' +
         'Procure: porte/presença da própria empresa; concorrentes nomeados na região; indicadores do setor (IBGE, associações setoriais, notícias econômicas); contexto econômico regional relevante.\n\n' +
         'Escreva um resumo objetivo dos ACHADOS em bullets curtos; cada achado com o dado e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 20 linhas. NÃO escreva o relatório — só os achados factuais.';
     }
