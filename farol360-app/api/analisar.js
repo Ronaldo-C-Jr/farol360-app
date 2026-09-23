@@ -25,7 +25,8 @@ REGRAS:
 5. Fonte enviada pelo cliente NÃO é oficial automaticamente: classifique-a.
 6. Não invente fontes, números ou citações.
 7. Tom consultivo: responda ao "e daí?", com implicações práticas.
-8. Responda EXCLUSIVAMENTE com um objeto JSON válido no formato pedido. Sem texto fora do JSON. Seja conciso: frases curtas, no máximo 4 itens por lista.`;
+8. NUNCA use "N/A", "não aplicável", "não disponível" nem linhas em branco. Se não houver dado real para um item ou uma seção inteira, retorne lista vazia [] ou string vazia — o sistema esconde o que estiver vazio.
+9. Responda EXCLUSIVAMENTE com um objeto JSON válido no formato pedido. Sem texto fora do JSON. Frases curtas.`;
 
 function promptEmpresa(d, contexto) {
   const topicos = Array.isArray(d.topicos) ? d.topicos.join(', ') : (d.topicos || 'nenhum');
@@ -93,7 +94,9 @@ REGRAS:
 - NUNCA valores monetários. Só %, índices, per capita ou notas.
 - Cada dado leva "evidencia": oficial | derivado-estadual | analogia-pares | tendencial | proxy.
 - "est":true quando o número for estimativa.
-- Sentimento é proxy, nunca intenção de voto. Declarar lacunas; não inventar fontes nem números.`;
+- Sentimento é proxy, nunca intenção de voto. Declarar lacunas; não inventar fontes nem números.
+- Se o período de projeção for "Sem projeção" ou não solicitado, retorne "projecoes": []. Não invente projeções.
+- Preencha cada seção só com dados reais; seção sem dado = lista vazia []. Nada de "N/A" ou "não aplicável".`;
 }
 
 const SCHEMA_GOVERNO = `FORMATO JSON OBRIGATÓRIO (preencha TODOS os campos; respeite as quantidades mínimas; "est":true onde o valor for estimativa):
