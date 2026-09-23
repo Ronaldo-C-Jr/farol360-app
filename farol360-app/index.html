@@ -145,6 +145,24 @@
   .onepager .op b{display:block;font-family:var(--mono);font-size:20px;margin-bottom:2px}.onepager .op span{font-size:11px;color:#aeb6c6}
   .onepager .op-concl{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14);font-size:12.5px;color:#d7dce6;line-height:1.55}
   .footnote{margin-top:26px;padding-top:14px;border-top:1px solid var(--line-soft);font-size:11px;color:var(--ink-faint);line-height:1.55}
+  .footnote a{color:var(--ink-faint)}
+  .num-c{font-family:var(--mono)}
+  .plainul{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:5px}
+  .meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:8px 0 4px}
+  .meterbox{background:var(--surface-3);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:12px 14px}
+  .meterbox .ml{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:600;margin-bottom:9px}
+  .meter{display:flex;align-items:center;gap:10px}
+  .meter .mtrack{flex:1;height:9px;background:var(--surface-2);border-radius:6px;overflow:hidden}
+  .meter .mfill{height:100%;background:var(--accent);border-radius:6px}
+  .meter .mval{font-family:var(--mono);font-weight:600;font-size:13px;min-width:52px;text-align:right}
+  .bars{display:flex;flex-direction:column;gap:9px;margin:2px 0 12px}
+  .barrow{display:grid;grid-template-columns:140px 1fr 64px;align-items:center;gap:10px;font-size:12px}
+  .barrow .blabel{color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .barrow .btrack{height:14px;background:var(--surface-2);border-radius:4px;position:relative;overflow:hidden}
+  .barrow .bfill{height:100%;border-radius:4px;background:var(--accent)}
+  .brange{position:absolute;top:0;height:100%;background:var(--accent);opacity:.85;border-radius:4px}
+  .barrow .bval{font-family:var(--mono);color:var(--ink-soft);text-align:right}
+  @media (max-width:520px){.barrow{grid-template-columns:104px 1fr 54px}}
   @media (max-width:780px){.form-grid{grid-template-columns:1fr}.side{position:static}.doc-inner{padding:24px 20px}.swot{grid-template-columns:1fr}.rep-title h1{font-size:21px}}
   @page{margin:16mm 14mm}
   @media print{
@@ -181,14 +199,20 @@ const PROMPTS={
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links, relatórios internos ou observações a considerar…'}]},
   perfil:{id:'perfil',icone:IC.perfil,base:'figura_publica_v3.0',titulo:'Análise de Figura Pública',versao:'v3.0',ligado:false,
     subtitulo:'Imagem, popularidade e potencial político',descricao:'Indicadores VIS/INT/EMO/IPE, linha do tempo, SWOT de imagem, públicos, projeções e confiabilidade.'},
-  governo:{id:'governo',icone:IC.governo,base:'governo_v2.9.0',titulo:'Avaliação de Governo',versao:'v2.9.0',ligado:false,
-    subtitulo:'Município, estado ou federal',descricao:'13 seções com nível de evidência, linha do tempo, ODS, SWOT, GUT e PDCA — estimativa transparente.'}
+  governo:{id:'governo',icone:IC.governo,base:'governo_v2.9.0',titulo:'Avaliação de Governo',versao:'v2.9.0',ligado:true,
+    subtitulo:'Município, estado ou federal',descricao:'13 seções com nível de evidência, linha do tempo, ODS, SWOT, GUT e PDCA — estimativa transparente.',
+    campos:[{id:'municipio',label:'Município / UF',tipo:'text',obrig:true,placeholder:'Ex.: Vitória da Conquista - BA'},
+     {id:'instancia',label:'Instância avaliada',tipo:'select',obrig:true,opcoes:['Prefeitura (municipal)','Secretaria municipal','Governo estadual','Órgão federal']},
+     {id:'area',label:'Área temática',tipo:'select',obrig:true,opcoes:['Saúde','Educação','Assistência Social','Segurança','Infraestrutura','Geral']},
+     {id:'periodo',label:'Período histórico',tipo:'text',obrig:true,placeholder:'Ex.: 2021–2024'},
+     {id:'projecao',label:'Período de projeção',tipo:'select',obrig:true,opcoes:['2026–2029','2027–2030','Sem projeção']},
+     {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links de portais de transparência, diários oficiais, relatórios de gestão…'}]}
 };
 const app=document.getElementById('app');
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function go(v){state.view=v;render();const m=document.querySelector('.main');if(m)m.scrollTo(0,0);window.scrollTo(0,0);}
 function render(){if(state.view==='login')return renderLogin();app.innerHTML=shell(body());bindCommon();if(state.view==='form')bindForm();}
-function shell(b){const c=state.cliente;return '<div class="demo-bar">'+farol(14)+' <span>Versão inicial — a análise de Empresa usa a IA de verdade. Perfil e Governo entram em seguida.</span></div>'+
+function shell(b){const c=state.cliente;return '<div class="demo-bar">'+farol(14)+' <span>Empresa e Governo usam a IA de verdade, com busca na web. Figura Pública entra em seguida.</span></div>'+
  '<div class="topbar"><div class="brand">'+farol(26)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div><div class="spacer"></div>'+
  '<div class="who"><div class="n">'+esc(c&&c.nome||'')+'</div><div class="c">'+esc(c&&c.org||'')+'</div></div>'+
  '<button class="iconbtn" data-act="theme" title="Tema"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>'+
@@ -221,36 +245,60 @@ function form(){const p=PROMPTS[state.promptId];const fs=p.campos.map(fieldHTML)
   '<div class="side"><div class="panel"><h4>Motor de IA</h4><div class="modrow">'+mods+'</div><div class="cost"><span class="lbl">Custo estimado</span><span class="val" id="cv">~R$'+MODELOS[state.modelo].custoRel.toFixed(2)+'<small>/relatório</small></span></div></div>'+
   '<button class="btn block" data-act="gerar">'+farol(15,'#fff')+' Gerar relatório</button><div class="hint" style="text-align:center">A geração usa a IA de verdade e consome crédito de API (centavos).</div></div></div>';}
 function loading(){return '<div class="loading"><div><div class="beam">'+farol(56)+'</div><h3>'+esc(state.fase||'Processando…')+'</h3><p>Modelo '+esc(MODELOS[state.modelo].nome)+' · '+esc(PROMPTS[state.promptId].titulo)+'</p><p class="hint" style="max-width:300px;margin:14px auto 0">São duas etapas: pesquisa na web e depois a redação. Pode levar cerca de 1 minuto no total.</p></div></div>';}
-// ---- Render do relatório de Empresa a partir do JSON da IA ----
+// ---- Render dos relatórios a partir do JSON da IA ----
 function tbl(head,rows){return '<div class="tbl-wrap"><table><thead><tr>'+head.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';}
 function sec(n,t,inner){return '<div class="sec"><div class="sec-h"><span class="num">'+n+'</span><h2>'+esc(t)+'</h2></div>'+inner+'</div>';}
 function star(est){return est?' <span class="star">*</span>':'';}
-function report(){
- const r=state.relatorio||{};const d=state.dados;const cab=r.cabecalho||{};
- const op=r.one_pager||{};const s=[];
- if(op){const tiles=[];
-  if(op.indice_competitividade)tiles.push('<div class="op"><b>'+esc(op.indice_competitividade.valor)+star(op.indice_competitividade.est)+'</b><span>Índice de competitividade</span></div>');
-  (op.kpis_topo||[]).slice(0,2).forEach(k=>tiles.push('<div class="op"><b>'+esc(k.faixa||'')+star(k.est)+'</b><span>'+esc(k.nome||'')+'</span></div>'));
-  if(op.cenario_base_12m)tiles.push('<div class="op"><b>'+esc((op.cenario_base_12m.texto||'').slice(0,14))+star(op.cenario_base_12m.est)+'</b><span>Cenário base 12m</span></div>');
-  s.push(sec('01','One Pager Executivo','<div class="onepager"><h3>Síntese para decisão</h3><div class="op-grid">'+tiles.join('')+'</div>'+(op.conclusao_consultiva?'<div class="op-concl">'+esc(op.conclusao_consultiva)+'</div>':'')+'</div>'));}
- if(r.pestel&&r.pestel.length)s.push(sec('02','PESTEL — ambiente externo',tbl(['Fator','Leitura','Implicação','Evidência'],r.pestel.map(x=>'<tr><td><b>'+esc(x.fator)+'</b></td><td>'+esc(x.leitura)+'</td><td>'+esc(x.implicacao)+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>').join(''))));
- if(r.competitivo){const c=r.competitivo;const sw=c.swot||{};
-  s.push(sec('03','Análise competitiva — Porter, VRIO, SWOT',(c.porter?'<p class="serif"><b>Porter:</b> '+esc(c.porter)+'</p>':'')+(c.vrio?'<p class="serif"><b>VRIO:</b> '+esc(c.vrio)+'</p>':'')+
-   '<div class="swot"><div class="q f"><h5>Forças</h5><ul>'+(sw.forcas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>'+
-   '<div class="q w"><h5>Fraquezas</h5><ul>'+(sw.fraquezas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>'+
-   '<div class="q o"><h5>Oportunidades</h5><ul>'+(sw.oportunidades||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>'+
-   '<div class="q t"><h5>Ameaças</h5><ul>'+(sw.ameacas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div>'));}
- if(r.kpis&&r.kpis.length)s.push(sec('04','KPIs em faixa (P5–P95)','<div class="kpi-row">'+r.kpis.map(k=>'<div class="kpi"><div class="kl">'+esc(k.nome)+star(k.est)+'</div><div class="kv">'+esc(k.faixa_p5_p95||'')+'</div><div class="kd">'+esc(k.recomendacao||k.interpretacao||'')+'</div></div>').join('')+'</div><div class="callout">'+IC.info+'<div>Sem valores monetários (regra do modelo). Itens com <span class="star">*</span> são estimados.</div></div>'));
- if(r.clientes_segmentos&&r.clientes_segmentos.length)s.push(sec('05','Clientes e segmentos',tbl(['Segmento','Participação','Leitura'],r.clientes_segmentos.map(x=>'<tr><td><b>'+esc(x.segmento)+star(x.est)+'</b></td><td>'+esc(x.participacao)+'</td><td>'+esc(x.leitura)+'</td></tr>').join(''))));
- if(r.projecoes_12m&&r.projecoes_12m.length)s.push(sec('06','Projeções 12 meses',tbl(['Cenário','Receita relativa','Margem','Leitura'],r.projecoes_12m.map(x=>'<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td>'+esc(x.receita_relativa)+'</td><td>'+esc(x.margem)+'</td><td>'+esc(x.leitura)+'</td></tr>').join(''))));
- if(r.roadmap&&r.roadmap.length)s.push(sec('07','Diagnóstico & Roadmap',tbl(['Horizonte','Ação prioritária'],r.roadmap.map(x=>'<tr><td><b>'+esc(x.horizonte)+'</b></td><td>'+esc(x.acao)+'</td></tr>').join(''))));
- const conf=r.confiabilidade||{};
- const nota='<b>Metodologia FAROL360:</b> valores com <span class="star">*</span> são estimativa, não dado observado; a coluna Evidência classifica cada fonte. '+(conf.fontes_cliente_consideradas?'Inclui fontes fornecidas pelo cliente, classificadas pela metodologia. ':'')+(conf.limitacoes&&conf.limitacoes.length?'<br><b>Limitações:</b> '+conf.limitacoes.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria nem consultoria especializada.';
+function parseNums(s){var m=String(s==null?'':s).match(/-?\d+(?:[.,]\d+)?/g);return m?m.map(function(x){return parseFloat(x.replace(',','.'));}):[];}
+function meterBox(label,val){var v=Math.max(0,Math.min(100,Math.round(Number(val)||0)));return '<div class="meterbox"><div class="ml">'+esc(label)+'</div><div class="meter"><div class="mtrack"><div class="mfill" style="width:'+v+'%"></div></div><div class="mval">'+v+'/100</div></div></div>';}
+function metersRow(pairs){var b=pairs.filter(function(p){return p[1]!=null&&p[1]!==''&&p[1]!=='—';}).map(function(p){return meterBox(p[0],p[1]);});return b.length?'<div class="meters">'+b.join('')+'</div>':'';}
+function kpiRange(faixa){var n=parseNums(faixa);if(n.length<2)return '';var a=Math.min(n[0],n[1]),b=Math.max(n[0],n[1]);var max=(b<=0?Math.abs(a)+1:b)*1.25;var lo=Math.max(0,a)/max*100,hi=Math.min(b,max)/max*100;return '<div class="btrack" style="margin-top:8px"><div class="brange" style="left:'+lo+'%;width:'+Math.max(4,(hi-lo))+'%"></div></div>';}
+function barsBlock(items){return '<div class="bars">'+items.map(function(it){var p=Math.max(3,Math.min(100,Number(it.pct)||0));return '<div class="barrow"><div class="blabel" title="'+esc(it.label)+'">'+esc(it.label)+'</div><div class="btrack"><div class="bfill" style="width:'+p+'%"></div></div><div class="bval">'+esc(it.val||'')+'</div></div>';}).join('')+'</div>';}
+function swotBox(sw){sw=sw||{};return '<div class="swot"><div class="q f"><h5>Forças</h5><ul>'+(sw.forcas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="q w"><h5>Fraquezas</h5><ul>'+(sw.fraquezas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="q o"><h5>Oportunidades</h5><ul>'+(sw.oportunidades||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="q t"><h5>Ameaças</h5><ul>'+(sw.ameacas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div>';}
+function odsPill(st){var t=String(st||'').toLowerCase();var c='mod';if(t.indexOf('atingid')>=0||t.indexOf('bom')>=0)c='good';else if(t.indexOf('crít')>=0||t.indexOf('crit')>=0)c='crit';return '<span class="pill '+c+'">'+esc(st||'—')+'</span>';}
+function prioPill(p){var t=String(p||'').toLowerCase();var c='mod';if(t.indexOf('máx')>=0||t.indexOf('max')>=0||t.indexOf('alta')>=0)c='crit';else if(t.indexOf('baixa')>=0)c='good';return '<span class="pill '+c+'">'+esc(p||'—')+'</span>';}
+function footFontes(){return (state.fontes&&state.fontes.length)?('<br><span style="opacity:.7">Fontes ('+state.fontes.length+'): '+state.fontes.slice(0,10).map(function(f,i){return '<a href="'+esc(f.url)+'" target="_blank" rel="noopener">['+(i+1)+']</a>';}).join(' ')+'</span>'):'';}
+function docWrap(kicker,titulo,sub,subs,body,nota){
  return '<div class="report-head"><div class="meta"><button class="backlink" data-act="back">'+IC.back+' Nova análise</button></div><div class="report-actions"><button class="btn ghost sm" data-act="back">Refazer</button><button class="btn sm" data-act="pdf">Baixar PDF</button></div></div>'+
-  '<div class="doc"><div class="doc-band"></div><div class="doc-inner" id="rp"><div class="rep-title"><div class="k">Relatório de Análise de Empresa</div><h1>'+esc(cab.empresa||d.empresa||'Empresa')+'</h1><div class="who2">'+esc((cab.setor||d.setor||'')+' · '+(cab.cidade||d.cidade||''))+'</div>'+
-  '<div class="rep-sub"><div><div class="l">Período</div><div class="d">'+esc(cab.periodo||d.periodo||'')+'</div></div><div><div class="l">Modo</div><div class="d">'+esc(cab.modo||d.modo||'Completo')+'</div></div><div><div class="l">Modelo IA</div><div class="d">'+esc(MODELOS[state.modelo].nome)+'</div></div><div><div class="l">Confiabilidade</div><div class="d">'+esc((conf.nota_0_100||cab.confiabilidade_0_100||'—'))+'/100</div></div></div></div>'+
-  s.join('')+((state.fontes&&state.fontes.length)?sec('08','Fontes consultadas na web','<ol style="margin:0;padding-left:18px;font-size:12px;color:var(--ink-soft);display:flex;flex-direction:column;gap:6px">'+state.fontes.map(function(f){return '<li><a href="'+esc(f.url)+'" target="_blank" rel="noopener" style="word-break:break-word">'+esc(f.title)+'</a></li>';}).join('')+'</ol>'):'')+'<div class="footnote">'+nota+'</div></div></div>';
+  '<div class="doc"><div class="doc-band"></div><div class="doc-inner" id="rp"><div class="rep-title"><div class="k">'+esc(kicker)+'</div><h1>'+esc(titulo)+'</h1>'+(sub?'<div class="who2">'+esc(sub)+'</div>':'')+
+  '<div class="rep-sub">'+subs.map(function(x){return '<div><div class="l">'+esc(x[0])+'</div><div class="d">'+esc(x[1])+'</div></div>';}).join('')+'</div></div>'+
+  body+'<div class="footnote">'+nota+'</div></div></div>';
 }
+function relEmpresa(r,d){
+ var cab=r.cabecalho||{},op=r.one_pager||{},conf=r.confiabilidade||{},s=[];
+ if(op){var tiles=[];
+  if(op.indice_competitividade)tiles.push('<div class="op"><b>'+esc(op.indice_competitividade.valor)+star(op.indice_competitividade.est)+'</b><span>Índice de competitividade</span></div>');
+  (op.kpis_topo||[]).slice(0,2).forEach(function(k){tiles.push('<div class="op"><b>'+esc(k.faixa||'')+star(k.est)+'</b><span>'+esc(k.nome||'')+'</span></div>');});
+  if(op.cenario_base_12m)tiles.push('<div class="op"><b>'+esc((op.cenario_base_12m.texto||'').slice(0,14))+star(op.cenario_base_12m.est)+'</b><span>Cenário base 12m</span></div>');
+  s.push(sec('01','One Pager Executivo','<div class="onepager"><h3>Síntese para decisão</h3><div class="op-grid">'+tiles.join('')+'</div>'+(op.conclusao_consultiva?'<div class="op-concl">'+esc(op.conclusao_consultiva)+'</div>':'')+'</div>'+metersRow([['Índice de competitividade',(op.indice_competitividade||{}).valor],['Confiabilidade das fontes',(conf.nota_0_100||cab.confiabilidade_0_100)]])));}
+ if(r.pestel&&r.pestel.length)s.push(sec('02','PESTEL — ambiente externo',tbl(['Fator','Leitura','Implicação','Evidência'],r.pestel.map(function(x){return '<tr><td><b>'+esc(x.fator)+'</b></td><td>'+esc(x.leitura)+'</td><td>'+esc(x.implicacao)+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
+ if(r.competitivo){var c=r.competitivo;s.push(sec('03','Análise competitiva — Porter, VRIO, SWOT',(c.porter?'<p class="serif"><b>Porter:</b> '+esc(c.porter)+'</p>':'')+(c.vrio?'<p class="serif"><b>VRIO:</b> '+esc(c.vrio)+'</p>':'')+swotBox(c.swot)));}
+ if(r.kpis&&r.kpis.length)s.push(sec('04','KPIs em faixa (P5–P95)','<div class="kpi-row">'+r.kpis.map(function(k){return '<div class="kpi"><div class="kl">'+esc(k.nome)+star(k.est)+'</div><div class="kv">'+esc(k.faixa_p5_p95||'')+'</div>'+kpiRange(k.faixa_p5_p95)+'<div class="kd">'+esc(k.recomendacao||k.interpretacao||'')+'</div></div>';}).join('')+'</div>'));
+ if(r.clientes_segmentos&&r.clientes_segmentos.length){var segItems=r.clientes_segmentos.map(function(x){var n=parseNums(x.participacao);return {label:x.segmento,pct:n.length?Math.max.apply(null,n):0,val:x.participacao};});
+  s.push(sec('05','Clientes e segmentos',barsBlock(segItems)+tbl(['Segmento','Participação','Leitura'],r.clientes_segmentos.map(function(x){return '<tr><td><b>'+esc(x.segmento)+star(x.est)+'</b></td><td>'+esc(x.participacao)+'</td><td>'+esc(x.leitura)+'</td></tr>';}).join(''))));}
+ if(r.projecoes_12m&&r.projecoes_12m.length)s.push(sec('06','Projeções 12 meses',tbl(['Cenário','Receita relativa','Margem','Leitura'],r.projecoes_12m.map(function(x){return '<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td class="num-c">'+esc(x.receita_relativa)+'</td><td class="num-c">'+esc(x.margem)+'</td><td>'+esc(x.leitura)+'</td></tr>';}).join(''))));
+ if(r.roadmap&&r.roadmap.length)s.push(sec('07','Diagnóstico & Roadmap',tbl(['Horizonte','Ação prioritária'],r.roadmap.map(function(x){return '<tr><td><b>'+esc(x.horizonte)+'</b></td><td>'+esc(x.acao)+'</td></tr>';}).join(''))));
+ var nota='<b>Metodologia FAROL360:</b> valores com <span class="star">*</span> são estimativa, não dado observado; a coluna Evidência classifica cada fonte. '+(conf.fontes_cliente_consideradas?'Inclui fontes fornecidas pelo cliente. ':'')+(conf.limitacoes&&conf.limitacoes.length?'<br><b>Limitações:</b> '+conf.limitacoes.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria nem consultoria especializada.'+footFontes();
+ return docWrap('Relatório de Análise de Empresa',cab.empresa||d.empresa||'Empresa',(cab.setor||d.setor||'')+' · '+(cab.cidade||d.cidade||''),[['Período',cab.periodo||d.periodo||''],['Modo',cab.modo||d.modo||'Completo'],['Modelo IA',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+}
+function relGoverno(r,d){
+ var cab=r.cabecalho||{},conf=r.confiabilidade||{},s=[],n=1;function pad(){return ('0'+(n++)).slice(-2);}
+ s.push(sec(pad(),'Painel de confiabilidade',metersRow([['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100)],['Integridade dos dados',cab.integridade_0_100]])||'<p>Sem índices de confiabilidade informados.</p>'));
+ if(r.indicadores&&r.indicadores.length)s.push(sec(pad(),'Indicadores e comparativos',tbl(['Indicador','Município','Estado','Brasil','Tend.','Evidência'],r.indicadores.map(function(x){return '<tr><td><b>'+esc(x.indicador)+'</b>'+star(x.est)+'</td><td class="num-c">'+esc(x.municipio||'')+'</td><td class="num-c">'+esc(x.estado||'')+'</td><td class="num-c">'+esc(x.brasil||'')+'</td><td>'+esc(x.tendencia||'')+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
+ if(r.diagnostico)s.push(sec(pad(),'Diagnóstico interpretativo','<p class="serif">'+esc(r.diagnostico)+'</p>'));
+ if(r.linha_tempo&&r.linha_tempo.length)s.push(sec(pad(),'Linha do tempo sociopolítica',tbl(['Data','Evento','Efeito','Evidência'],r.linha_tempo.map(function(x){return '<tr><td class="num-c">'+esc(x.data||'')+'</td><td>'+esc(x.evento||'')+'</td><td>'+esc(x.efeito||'')+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
+ if(r.barreiras&&r.barreiras.length)s.push(sec(pad(),'Barreiras invisíveis e subnotificação','<ul class="plainul">'+r.barreiras.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>'));
+ if(r.projecoes&&r.projecoes.length)s.push(sec(pad(),'Painel de projeções',tbl(['Ano','Indicador','Sem intervenção','Com intervenção'],r.projecoes.map(function(x){return '<tr><td class="num-c">'+esc(x.ano||'')+'</td><td>'+esc(x.indicador||'')+'</td><td>'+esc(x.sem_intervencao||'')+star(x.est)+'</td><td>'+esc(x.com_intervencao||'')+'</td></tr>';}).join(''))));
+ if(r.ods&&r.ods.length)s.push(sec(pad(),'Alinhamento com ODS',tbl(['Meta ODS','Status','Tendência','Evidência'],r.ods.map(function(x){return '<tr><td><b>'+esc(x.meta||'')+'</b></td><td>'+odsPill(x.status)+'</td><td>'+esc(x.tendencia||'')+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
+ if(r.sentimento&&r.sentimento.length)s.push(sec(pad(),'Sentimento popular',tbl(['Frase','Polaridade','Tema','Evidência'],r.sentimento.map(function(x){return '<tr><td>“'+esc(x.frase||'')+'”</td><td>'+esc(x.polaridade||'')+'</td><td>'+esc(x.tema||'')+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
+ if(r.swot)s.push(sec(pad(),'Matriz SWOT',swotBox(r.swot)));
+ if(r.gut&&r.gut.length)s.push(sec(pad(),'Matriz GUT — priorização',tbl(['Problema','G','U','T','GxUxT','Prioridade'],r.gut.map(function(x){return '<tr><td>'+esc(x.problema||'')+'</td><td class="num-c">'+esc(x.g)+'</td><td class="num-c">'+esc(x.u)+'</td><td class="num-c">'+esc(x.t)+'</td><td class="num-c">'+esc(x.gut)+'</td><td>'+prioPill(x.prioridade)+'</td></tr>';}).join(''))));
+ if(r.pdca&&r.pdca.length)s.push(sec(pad(),'Ciclo PDCA',tbl(['Etapa','Objetivo','Indicador','Prazo'],r.pdca.map(function(x){return '<tr><td><b>'+esc(x.etapa||'')+'</b></td><td>'+esc(x.objetivo||'')+'</td><td>'+esc(x.indicador||'')+'</td><td>'+esc(x.prazo||'')+'</td></tr>';}).join(''))));
+ if(r.conclusao)s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
+ var nota='<b>Metodologia FAROL360:</b> a coluna Evidência classifica cada dado (oficial → derivado-estadual → analogia-pares → tendencial → proxy); itens com <span class="star">*</span> são estimativa; sentimento é proxy, não intenção de voto. Sem valores monetários. '+(conf.limitacoes&&conf.limitacoes.length?'<br><b>Limitações:</b> '+conf.limitacoes.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria.'+footFontes();
+ return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Modelo IA',MODELOS[state.modelo].nome],['Integridade',(cab.integridade_0_100||'—')+'/100']],s.join(''),nota);
+}
+function report(){var r=state.relatorio||{};var d=state.dados;return state.promptId==='governo'?relGoverno(r,d):relEmpresa(r,d);}
 function bindCommon(){app.querySelectorAll('[data-act]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.act;
   if(a==='logout'){state.cliente=null;state.dados={};state.relatorio=null;go('login');}
   if(a==='theme')toggleTheme();
@@ -266,7 +314,7 @@ async function gerar(){const p=PROMPTS[state.promptId];p.campos.forEach(f=>{if(f
  if(falta.length){alert('Preencha: '+falta.map(f=>f.label).join(', '));return;}
  state.erro=null;state.fase='Pesquisando dados na web…';go('loading');
  try{
-  const r1=await fetch('/api/pesquisar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dados:state.dados,modelo:state.modelo})});
+  const r1=await fetch('/api/pesquisar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo})});
   const j1=await r1.json();
   if(!r1.ok||!j1.ok){state.erro=((j1&&j1.erro)||('Erro '+r1.status));go('form');return;}
   state.fontes=j1.fontes||[];
