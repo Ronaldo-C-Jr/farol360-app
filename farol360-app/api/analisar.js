@@ -7,6 +7,49 @@ const MODELOS = {
   opus:   { id: 'claude-opus-4-8',   max: 11000 },
 };
 
+const PRECO_CENT = { haiku: 50, sonnet: 100, opus: 150 };
+const SB_URL = process.env.SUPABASE_URL || 'https://xjifquevscvkdhnjxqkh.supabase.co';
+
+// Valida o token do usuário e devolve o id, ou null.
+async function sbUserId(token) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  if (!svc || !token) return null;
+  try {
+    const r = await fetch(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j && j.id) ? j.id : null;
+  } catch (e) { return null; }
+}
+// Lê o perfil (service_role, ignora RLS).
+async function sbPerfil(uid) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (Array.isArray(j) && j[0]) ? j[0] : null;
+  } catch (e) { return null; }
+}
+// Débito atômico + registro do relatório. Devolve { ok, saldo, erro }.
+async function sbDebitar(uid, tipo, consulta, preco, titulo) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/rpc/debitar_e_registrar', {
+      method: 'POST',
+      headers: { apikey: svc, Authorization: 'Bearer ' + svc, 'content-type': 'application/json' },
+      body: JSON.stringify({ p_user: uid, p_tipo: tipo, p_consulta: consulta, p_preco: preco, p_titulo: titulo }),
+    });
+    const j = await r.json();
+    return j || { ok: false };
+  } catch (e) { return { ok: false, erro: String(e) }; }
+}
+function tituloDe(promptId, d) {
+  if (promptId === 'governo') return d.municipio || 'Avaliação de Governo';
+  if (promptId === 'perfil') return d.figura || 'Figura Pública';
+  return d.empresa || 'Empresa';
+}
+
 const SYSTEM = `Você é o motor analítico do FAROL360, sistema de inteligência estratégica.
 Produza análise rigorosa, consultiva e auditável, seguindo regras inegociáveis.
 
@@ -175,6 +218,18 @@ export default async function handler(req, res) {
     const { promptId = 'empresa', dados = {}, modelo = 'sonnet', contexto = '' } = body;
     if (promptId !== 'empresa' && promptId !== 'governo' && promptId !== 'perfil') { res.status(400).json({ erro: 'Análise não reconhecida.' }); return; }
 
+    // --- Autenticação + verificação de saldo/acesso ---
+    const auth = req.headers && (req.headers.authorization || req.headers.Authorization) || '';
+    const token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
+    const uid = await sbUserId(token);
+    if (!uid) { res.status(401).json({ erro: 'Sessão expirada. Faça login novamente.' }); return; }
+    const preco = PRECO_CENT[modelo] || PRECO_CENT.sonnet;
+    const perfil = await sbPerfil(uid);
+    if (!perfil) { res.status(403).json({ erro: 'Perfil não encontrado. Contate o administrador.' }); return; }
+    if (perfil.ativo === false) { res.status(403).json({ erro: 'Conta inativa. Contate o administrador.' }); return; }
+    if (!Array.isArray(perfil.analises) || perfil.analises.indexOf(promptId) < 0) { res.status(403).json({ erro: 'Esta análise não está liberada no seu acesso.' }); return; }
+    if ((Number(perfil.saldo_centavos) || 0) < preco) { res.status(402).json({ erro: 'Saldo insuficiente para esta consulta. Solicite mais créditos ao administrador.' }); return; }
+
     const m = MODELOS[modelo] || MODELOS.sonnet;
     const base = promptId === 'governo'
       ? promptGoverno(dados, contexto) + '\n\n' + SCHEMA_GOVERNO
@@ -213,7 +268,10 @@ export default async function handler(req, res) {
       res.status(502).json({ erro: 'A IA não devolveu JSON válido (stop_reason=' + (j.stop_reason || '?') + '). Início: ' + texto.slice(0, 160) + ' […] Fim: ' + texto.slice(-160) });
       return;
     }
-    res.status(200).json({ ok: true, relatorio, uso: j.usage || null, modelo: m.id });
+    // --- Débito atômico + registro (relatório já gerado com sucesso) ---
+    const deb = await sbDebitar(uid, promptId, modelo, preco, tituloDe(promptId, dados));
+    const saldo = (deb && typeof deb.saldo === 'number') ? deb.saldo : undefined;
+    res.status(200).json({ ok: true, relatorio, saldo: saldo, uso: j.usage || null, modelo: m.id });
   } catch (e) {
     res.status(500).json({ erro: 'Falha interna do servidor.', detalhe: String(e).slice(0, 300) });
   }

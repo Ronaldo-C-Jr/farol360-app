@@ -2,11 +2,28 @@
 // Busca dados reais e devolve os ACHADOS (texto) + as fontes. Rápido, cabe em <60s.
 
 const MODELOS = { haiku: 'claude-haiku-4-5', sonnet: 'claude-sonnet-5', opus: 'claude-opus-4-8' };
+const SB_URL = process.env.SUPABASE_URL || 'https://xjifquevscvkdhnjxqkh.supabase.co';
+
+async function sbUserId(token) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  if (!svc || !token) return null;
+  try {
+    const r = await fetch(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j && j.id) ? j.id : null;
+  } catch (e) { return null; }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ erro: 'Use POST.' }); return; }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) { res.status(500).json({ erro: 'ANTHROPIC_API_KEY não configurada no servidor.' }); return; }
+
+  const auth = req.headers && (req.headers.authorization || req.headers.Authorization) || '';
+  const token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
+  const uid = await sbUserId(token);
+  if (!uid) { res.status(401).json({ erro: 'Sessão expirada. Faça login novamente.' }); return; }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
