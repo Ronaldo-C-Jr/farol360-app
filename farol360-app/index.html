@@ -7,27 +7,29 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root{
-    --bg:#eef0f4;--surface:#fff;--surface-2:#e7eaf0;--surface-3:#f6f7fa;
-    --ink:#191e29;--ink-soft:#565f73;--ink-faint:#8a92a4;--line:#d8dce4;--line-soft:#e6e9ef;
-    --accent:#a25c1c;--accent-ink:#8a4d15;--accent-soft:#f3e6d4;--brand:#c07526;
+    --bg:#eef2f1;--surface:#ffffff;--surface-2:#e4ebe9;--surface-3:#f3f7f6;
+    --ink:#131d1c;--ink-soft:#4f5f5c;--ink-faint:#84918d;--line:#d5dcda;--line-soft:#e5ebe9;
+    --accent:#0e3536;--accent-ink:#0c2c2c;--accent-soft:#d9e8e5;--brand:#b3712a;
     --good:#2c7a58;--good-soft:#dcefe6;--mod:#9a7415;--mod-soft:#f4ead0;
     --crit:#b23b3b;--crit-soft:#f4dcdc;--info:#2b5c8a;--info-soft:#dbe8f4;
-    --shadow:0 1px 2px rgba(20,26,40,.06),0 8px 24px rgba(20,26,40,.06);
-    --shadow-lg:0 12px 40px rgba(20,26,40,.14);--r:12px;--r-sm:8px;
+    --shadow:0 1px 2px rgba(14,26,26,.06),0 8px 24px rgba(14,26,26,.06);
+    --shadow-lg:0 12px 40px rgba(14,26,26,.14);--r:12px;--r-sm:8px;
     --sans:"IBM Plex Sans",system-ui,sans-serif;--serif:"IBM Plex Serif",Georgia,serif;--mono:"IBM Plex Mono",ui-monospace,monospace;
   }
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-    --bg:#0e1320;--surface:#161c2b;--surface-2:#1f2637;--surface-3:#121826;
-    --ink:#e8ebf2;--ink-soft:#9aa3b6;--ink-faint:#6b7488;--line:#2a3345;--line-soft:#222a3a;
-    --accent:#d98f43;--accent-ink:#e4a259;--accent-soft:#2e2416;--brand:#e0974a;
+    color-scheme:dark;
+    --bg:#0a1413;--surface:#12201f;--surface-2:#1c2c2a;--surface-3:#0e1a19;
+    --ink:#e6ecea;--ink-soft:#93a3a0;--ink-faint:#697a77;--line:#243532;--line-soft:#1b2b29;
+    --accent:#2c6f6c;--accent-ink:#63b3ad;--accent-soft:#123130;--brand:#d59a4e;
     --good:#4bab82;--good-soft:#16281f;--mod:#cba13f;--mod-soft:#2a2312;
     --crit:#d16565;--crit-soft:#2c1717;--info:#5f96c8;--info-soft:#132132;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3);--shadow-lg:0 12px 40px rgba(0,0,0,.5);
   }}
   :root[data-theme="dark"]{
-    --bg:#0e1320;--surface:#161c2b;--surface-2:#1f2637;--surface-3:#121826;
-    --ink:#e8ebf2;--ink-soft:#9aa3b6;--ink-faint:#6b7488;--line:#2a3345;--line-soft:#222a3a;
-    --accent:#d98f43;--accent-ink:#e4a259;--accent-soft:#2e2416;--brand:#e0974a;
+    color-scheme:dark;
+    --bg:#0a1413;--surface:#12201f;--surface-2:#1c2c2a;--surface-3:#0e1a19;
+    --ink:#e6ecea;--ink-soft:#93a3a0;--ink-faint:#697a77;--line:#243532;--line-soft:#1b2b29;
+    --accent:#2c6f6c;--accent-ink:#63b3ad;--accent-soft:#123130;--brand:#d59a4e;
     --good:#4bab82;--good-soft:#16281f;--mod:#cba13f;--mod-soft:#2a2312;
     --crit:#d16565;--crit-soft:#2c1717;--info:#5f96c8;--info-soft:#132132;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3);--shadow-lg:0 12px 40px rgba(0,0,0,.5);
@@ -54,7 +56,7 @@
   .cli-row input[type=number]{width:96px}
   .mini{font-size:11px;font-weight:600;color:var(--ink-soft);min-width:112px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:600}
-  .brand .wm{font-size:15px;letter-spacing:.02em}.brand .wm span{color:var(--accent)}
+  .brand .wm{font-size:15px;letter-spacing:.02em}.brand .wm span{color:var(--brand)}
   .brand .tag{font-size:10px;color:var(--ink-faint);letter-spacing:.14em;text-transform:uppercase;font-weight:600;margin-top:1px}
   .spacer{flex:1}
   .who{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}
@@ -65,7 +67,7 @@
   .login{min-height:100%;display:grid;place-items:center;padding:24px 16px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
   .login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-lg);padding:32px 30px}
   .login-brand{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:26px;text-align:center}
-  .login-brand .wm{font-size:24px;font-weight:600}.login-brand .wm span{color:var(--accent)}
+  .login-brand .wm{font-size:24px;font-weight:600}.login-brand .wm span{color:var(--brand)}
   .login-brand .tag{font-size:10.5px;color:var(--ink-faint);letter-spacing:.16em;text-transform:uppercase;font-weight:600}
   .field{margin-bottom:14px}.field label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--ink-soft)}
   .req{color:var(--crit)}
@@ -114,8 +116,15 @@
   .cost{display:flex;align-items:baseline;justify-content:space-between;padding-top:12px;margin-top:12px;border-top:1px solid var(--line-soft)}
   .cost .lbl{font-size:12px;color:var(--ink-soft)}.cost .val{font-family:var(--mono);font-weight:600;font-size:16px}.cost .val small{font-size:11px;color:var(--ink-faint);font-weight:400}
   .loading{min-height:60vh;display:grid;place-items:center;text-align:center}
-  .beam svg{animation:spin 1.4s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){.beam svg{animation:none}}
+  .beacon{position:relative;width:132px;height:132px;margin:0 auto;perspective:320px}
+  .beacon .lring{position:absolute;inset:6px;border:4px solid var(--accent);border-radius:50%;opacity:.85}
+  .beacon .lh{position:absolute;inset:0;width:100%;height:100%}
+  .beacon .optic{position:absolute;left:50%;top:42%;width:122px;height:32px;margin:-16px 0 0 -61px;transform-style:preserve-3d;animation:optic 3.2s linear infinite;will-change:transform}
+  .beacon .bowtie{position:absolute;inset:0;background:linear-gradient(90deg,transparent 3%,var(--brand) 27%,var(--brand) 73%,transparent 97%);clip-path:polygon(0 8%,50% 42%,100% 8%,100% 92%,50% 58%,0 92%);opacity:.9}
+  .beacon .flare{position:absolute;left:50%;top:42%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:var(--brand);box-shadow:0 0 16px 5px color-mix(in srgb,var(--brand) 55%,transparent);animation:flare 1.6s ease-in-out infinite}
+  @keyframes optic{to{transform:rotateY(360deg)}}
+  @keyframes flare{0%,100%{opacity:.5;transform:scale(.85)}50%{opacity:1;transform:scale(1.12)}}
+  @media (prefers-reduced-motion:reduce){.beacon .optic{animation:none;transform:rotateY(26deg)}.beacon .flare{animation:none;opacity:1}}
   .loading h3{font-size:16px;font-weight:600;margin:16px 0 6px}.loading p{color:var(--ink-soft);font-size:13px}
   .errbox{background:var(--crit-soft);border:1px solid var(--crit);color:var(--crit);border-radius:var(--r-sm);padding:14px 16px;font-size:13px;margin-top:14px}
   .errbox b{display:block;margin-bottom:4px}
@@ -231,7 +240,22 @@ async function restaurarSessao(){
   var perfil=await sbPerfil(u.id,t);setCliente(u.id,u.email,t,perfil);go('catalog');
 }
 const IC={perfil:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>',governo:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/></svg>',empresa:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21V7l7-3v17M17 21V10l-7-3M3 21h18"/></svg>',back:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',info:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v0"/></svg>'};
-function farol(s,c){return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 32 32" fill="none"><path d="M13 12h6l2 15H11z" fill="'+(c||'var(--accent)')+'" opacity=".9"/><rect x="12.5" y="7" width="7" height="5" rx="1" fill="'+(c||'var(--accent)')+'"/><circle cx="16" cy="5" r="2.4" fill="var(--brand)"/><path d="M18 5l9-3M18 5l9 3M14 5L5 2M14 5L5 8" stroke="var(--brand)" stroke-width="1.4" stroke-linecap="round" opacity=".8"/></svg>';}
+var _fk=0;
+function farol(s,c){c=c||'var(--accent)';var id='fk'+(++_fk);
+ return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 32 32" fill="none">'+
+ '<defs><mask id="'+id+'"><rect width="32" height="32" fill="#fff"/>'+
+ '<g stroke="#000" stroke-width="2.3" stroke-linecap="round"><line x1="10.6" y1="18.4" x2="21.4" y2="15.5"/><line x1="10.9" y1="22.2" x2="21.2" y2="19.4"/></g></mask></defs>'+
+ '<circle cx="16" cy="16" r="13.3" stroke="'+c+'" stroke-width="2.1"/>'+
+ '<g fill="'+c+'">'+
+ '<path d="M10.6 24.6 L21.4 24.6 L20 21.6 L12 21.6 Z"/>'+
+ '<path d="M12.2 13 L19.8 13 L20.6 21.6 L11.4 21.6 Z" mask="url(#'+id+')"/>'+
+ '<rect x="11.2" y="11.4" width="9.6" height="1.8" rx="0.4"/>'+
+ '<path d="M12.7 8.2 L19.3 8.2 L19.3 11.4 L12.7 11.4 Z"/>'+
+ '<path d="M12 8.2 L20 8.2 L16 5.1 Z"/>'+
+ '<rect x="15.5" y="3.5" width="1" height="2"/>'+
+ '</g>'+
+ '<rect x="14.1" y="8.7" width="3.8" height="2.4" rx="0.3" fill="var(--brand)"/>'+
+ '</svg>';}
 const PROMPTS={
   empresa:{id:'empresa',icone:IC.empresa,base:'empresa_v4.0_pro',titulo:'Análise de Empresa',versao:'v4.0-pro',ligado:true,
     subtitulo:'Perfil, mercado, GEPS, oportunidades e nichos',
@@ -242,6 +266,7 @@ const PROMPTS={
      {id:'periodo',label:'Período de análise',tipo:'select',obrig:true,opcoes:['Últimos 12 meses','Últimos 3 anos','Últimos 5 anos']},
      {id:'modo',label:'Profundidade',tipo:'seg',obrig:true,opcoes:['Executivo','Completo'],padrao:'Completo'},
      {id:'topicos',label:'Tópicos adicionais',tipo:'checks',opcoes:['OKR','Benchmarking','Customer Journey','KPI personalizados','Heatmaps de venda','ESG']},
+     {id:'extras',label:'Detalhes e pedidos (opcional)',tipo:'extras',placeholder:'Ex.: porte, diferenciais, produtos, concorrentes, público-alvo — e comparações ou gráficos que queira ver no relatório.'},
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links, relatórios internos ou observações a considerar…'}]},
   perfil:{id:'perfil',icone:IC.perfil,base:'figura_publica_v3.0',titulo:'Análise de Figura Pública',versao:'v3.0',ligado:true,
     subtitulo:'Imagem, popularidade e potencial político',descricao:'Indicadores VIS/INT/EMO/IPE, linha do tempo, SWOT de imagem, públicos, projeções e confiabilidade.',
@@ -250,6 +275,7 @@ const PROMPTS={
      {id:'tipo',label:'Tipo de diagnóstico',tipo:'seg',obrig:true,opcoes:['Político','Social','Ambos'],padrao:'Ambos'},
      {id:'tags',label:'TAGs / temas centrais',tipo:'checks',opcoes:['Mandato','Popularidade','Base eleitoral','Imagem pública','Gestão de crises','Influência regional']},
      {id:'avancado',label:'Opções avançadas',tipo:'checks',opcoes:['Perfil sociodemográfico','Emoções por evento','Comparativo regional','Simulação de alianças']},
+     {id:'extras',label:'Detalhes e pedidos (opcional)',tipo:'extras',placeholder:'Ex.: nome, apelido, partido, cargo, mandatos, bandeiras, histórico — e comparações ou gráficos que queira ver no relatório.'},
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links de notícias, redes oficiais, pesquisas ou observações a considerar…'}]},
   governo:{id:'governo',icone:IC.governo,base:'governo_v2.9.0',titulo:'Avaliação de Governo',versao:'v2.9.0',ligado:true,
     subtitulo:'Município, estado ou federal',descricao:'13 seções com nível de evidência, linha do tempo, ODS, SWOT, GUT e PDCA — estimativa transparente.',
@@ -258,6 +284,7 @@ const PROMPTS={
      {id:'area',label:'Área temática',tipo:'select',obrig:true,opcoes:['Saúde','Educação','Assistência Social','Segurança','Infraestrutura','Geral']},
      {id:'periodo',label:'Período histórico',tipo:'text',obrig:true,placeholder:'Ex.: 2021–2024'},
      {id:'projecao',label:'Período de projeção',tipo:'select',obrig:true,opcoes:['2026–2029','2027–2030','Sem projeção']},
+     {id:'extras',label:'Detalhes e pedidos (opcional)',tipo:'extras',placeholder:'Ex.: nome do gestor, contexto local, obras, prioridades — e comparações ou gráficos que queira ver no relatório.'},
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links de portais de transparência, diários oficiais, relatórios de gestão…'}]}
 };
 const app=document.getElementById('app');
@@ -308,6 +335,7 @@ function fieldHTML(f){const v=state.dados[f.id];const req=f.obrig?'<span class="
  if(f.tipo==='select'){const o=f.opcoes.map(x=>'<option '+(v===x?'selected':'')+'>'+esc(x)+'</option>').join('');return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><select id="f_'+f.id+'" data-f="'+f.id+'"><option value="" '+(!v?'selected':'')+' disabled>Selecione…</option>'+o+'</select></div>';}
  if(f.tipo==='seg'){const cur=v||f.padrao;const o=f.opcoes.map(x=>'<button type="button" class="opt '+(cur===x?'on':'')+'" data-seg="'+f.id+'" data-val="'+esc(x)+'">'+esc(x)+'</button>').join('');return '<div class="field"><label>'+esc(f.label)+' '+req+'</label><div class="seg">'+o+'</div></div>';}
  if(f.tipo==='checks'){const a=v||[];const o=f.opcoes.map(x=>'<label class="chk '+(a.includes(x)?'on':'')+'"><input type="checkbox" data-chk="'+f.id+'" value="'+esc(x)+'" '+(a.includes(x)?'checked':'')+'>'+esc(x)+'</label>').join('');return '<div class="field"><label>'+esc(f.label)+'</label><div class="checks">'+o+'</div></div>';}
+ if(f.tipo==='extras')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+'</label><textarea id="f_'+f.id+'" data-f="'+f.id+'" placeholder="'+esc(f.placeholder||'')+'">'+esc(v||'')+'</textarea><div class="hint">Acrescente tudo que ajudar sobre o que está sendo analisado — nome, apelido, partido, cargo, histórico, contexto: <b>quanto mais detalhes, melhor o resultado</b>. E se quiser algo específico no relatório — uma <b>comparação</b>, um <b>gráfico</b> ou um recorte — <b>é só pedir aqui</b>.</div></div>';
  if(f.tipo==='fontes')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+'</label><textarea id="f_'+f.id+'" data-f="'+f.id+'" placeholder="'+esc(f.placeholder||'')+'">'+esc(v||'')+'</textarea><div class="hint"><b>Copie e cole o texto</b> das suas informações aqui (não há envio de arquivo). O que você colar é classificado pela metodologia — não vira “oficial” automaticamente.</div></div>';
  return '';}
 function form(){const p=PROMPTS[state.promptId];const fs=p.campos.map(fieldHTML).join('');
@@ -321,7 +349,14 @@ function atualizarConsulta(){var saldo=(state.cliente&&Number(state.cliente.sald
  var sv2=document.getElementById('sv2');if(sv2){sv2.textContent=saldoBR(saldo);sv2.style.color=pode?'var(--good)':'var(--crit)';}
  var btn=document.getElementById('btnGerar');if(btn)btn.disabled=!pode;
  var hint=document.getElementById('genHint');if(hint)hint.textContent=pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou solicite mais créditos.';}
-function loading(){return '<div class="loading"><div><div class="beam">'+farol(56)+'</div><h3>'+esc(state.fase||'Processando…')+'</h3><p>Consulta '+esc(MODELOS[state.modelo].nome)+' · '+esc(PROMPTS[state.promptId].titulo)+'</p><p class="hint" style="max-width:300px;margin:14px auto 0">São duas etapas: pesquisa na web e depois a redação. Pode levar cerca de 1 minuto no total.</p></div></div>';}
+function beacon(){return '<div class="beacon" aria-hidden="true"><div class="lring"></div>'+
+ '<svg class="lh" viewBox="0 0 100 100"><defs><mask id="lhm"><rect width="100" height="100" fill="#fff"/>'+
+ '<g stroke="#000" stroke-width="7" stroke-linecap="round"><line x1="40" y1="64" x2="60" y2="56.5"/><line x1="41" y1="76" x2="60" y2="68.5"/></g></mask></defs>'+
+ '<g fill="var(--accent)"><path d="M38 88 L62 88 L58 82 L42 82 Z"/><path d="M42 50 L58 50 L60 82 L40 82 Z" mask="url(#lhm)"/>'+
+ '<rect x="38.6" y="46.4" width="22.8" height="3.6" rx="0.6"/><path d="M44 38 L56 38 L56 46.4 L44 46.4 Z"/><path d="M42 38 L58 38 L50 31.3 Z"/><rect x="49" y="27.2" width="2" height="4"/></g>'+
+ '<rect x="45.6" y="38.6" width="8.8" height="6.4" rx="0.6" fill="var(--brand)"/></svg>'+
+ '<div class="optic"><div class="bowtie"></div></div><div class="flare"></div></div>';}
+function loading(){return '<div class="loading"><div>'+beacon()+'<h3>'+esc(state.fase||'Processando…')+'</h3><p>Consulta '+esc(MODELOS[state.modelo].nome)+' · '+esc(PROMPTS[state.promptId].titulo)+'</p><p class="hint" style="max-width:300px;margin:14px auto 0">São duas etapas: pesquisa na web e depois a redação. Pode levar cerca de 1 minuto no total.</p></div></div>';}
 // ---- Render dos relatórios a partir do JSON da IA ----
 function tbl(head,rows){return '<div class="tbl-wrap"><table><thead><tr>'+head.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';}
 function sec(n,t,inner){return '<div class="sec"><div class="sec-h"><span class="num">'+n+'</span><h2>'+esc(t)+'</h2></div>'+inner+'</div>';}
