@@ -119,6 +119,46 @@ const SCHEMA_GOVERNO = `FORMATO JSON OBRIGATÓRIO (preencha TODOS os campos; res
  "confiabilidade":{"nota_0_100":0,"limitacoes":[]}
 }`;
 
+function promptPerfil(d, contexto) {
+  const tags = Array.isArray(d.tags) ? d.tags.join(', ') : (d.tags || '');
+  const av = Array.isArray(d.avancado) ? d.avancado.join(', ') : (d.avancado || '');
+  return `Gere uma ANÁLISE DE FIGURA PÚBLICA — 360°, técnica e sociológica, didática e consultiva.
+
+DADOS:
+- Figura: ${d.figura || '(não informado)'}
+- Período: ${d.periodo || ''}
+- Tipo de diagnóstico: ${d.tipo || 'Ambos'}
+- TAGs/temas: ${tags || '—'}
+- Opções avançadas: ${av || '—'}
+- Fontes próprias do cliente: ${d.fontes ? d.fontes : 'nenhuma'} (classificar; não tratar como oficiais)
+
+DADOS PESQUISADOS NA WEB (use como base factual; classifique a evidência conforme a fonte):
+${contexto ? contexto : '(sem pesquisa — marque tudo como estimativa)'}
+
+INDICADORES (todos 0–100, SEMPRE estimativas de imagem indireta):
+- VIS (Visibilidade), INT (Interesse temático), EMO (Sentimento: 0 neg, 100 pos), IPE (Popularidade estimada, composto).
+
+REGRAS:
+- IPE/VIS/INT/EMO são índices de IMAGEM indireta, NUNCA intenção de voto nem aprovação estatística.
+- Sinais digitais e notícias são proxy. Projeções são tendência estimada — NÃO alegar "previsão neural" nem modelos que não executa.
+- Não inventar fontes/números; declarar lacunas.
+- Sem "N/A"/linha em branco: seção sem dado = lista vazia [].`;
+}
+
+const SCHEMA_PERFIL = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "est":true onde for estimativa):
+{
+ "cabecalho":{"figura":"","cargo_partido":"","base_geografica":"","periodo":"","confiabilidade_0_100":0},
+ "perfil":{"formacao_trajetoria":"","imagem_percebida":"","publicos_apelo":""},
+ "indicadores":{"vis":0,"int":0,"emo":0,"ipe":0},
+ "linha_tempo":[{"marco":"","evento":"","emocao":""}],
+ "swot":{"forcas":[],"fraquezas":[],"oportunidades":[],"ameacas":[]},
+ "publicos":[{"segmento":"","penetracao":"","tendencia":"","est":true}],
+ "projecoes":[{"cenario":"","descricao":"","est":true}],
+ "aliancas":[{"figura":"","efeito_ipe":"","risco":""}],
+ "conclusao":"",
+ "confiabilidade":{"nota_0_100":0,"limitacoes":[]}
+}`;
+
 function extrairJSON(txt) {
   let s = String(txt).trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/,'').trim();
   const i = s.indexOf('{'); const j = s.lastIndexOf('}');
@@ -133,12 +173,14 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const { promptId = 'empresa', dados = {}, modelo = 'sonnet', contexto = '' } = body;
-    if (promptId !== 'empresa' && promptId !== 'governo') { res.status(400).json({ erro: 'Análise não reconhecida.' }); return; }
+    if (promptId !== 'empresa' && promptId !== 'governo' && promptId !== 'perfil') { res.status(400).json({ erro: 'Análise não reconhecida.' }); return; }
 
     const m = MODELOS[modelo] || MODELOS.sonnet;
     const base = promptId === 'governo'
       ? promptGoverno(dados, contexto) + '\n\n' + SCHEMA_GOVERNO
-      : promptEmpresa(dados, contexto) + '\n\n' + SCHEMA_EMPRESA;
+      : promptId === 'perfil'
+        ? promptPerfil(dados, contexto) + '\n\n' + SCHEMA_PERFIL
+        : promptEmpresa(dados, contexto) + '\n\n' + SCHEMA_EMPRESA;
     const userPrompt = base + '\n\nResponda APENAS com o objeto JSON, começando com { e terminando com }. Sem texto antes ou depois, sem cercas de código.';
 
     const ac = new AbortController();
