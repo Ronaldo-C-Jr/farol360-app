@@ -183,6 +183,14 @@
   .footnote{margin-top:26px;padding-top:14px;border-top:1px solid var(--line-soft);font-size:11px;color:var(--ink-faint);line-height:1.55}
   .footnote a{color:var(--ink-faint)}
   .num-c{font-family:var(--mono)}
+  .base{background:var(--surface-3);border:1px solid var(--line-soft);border-left:3px solid var(--accent);border-radius:var(--r-sm);padding:12px 15px;margin:16px 0 2px;display:flex;flex-direction:column;gap:7px}
+  .base-h{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+  .base-top{display:flex;align-items:center;gap:11px}
+  .base-nota{font-family:var(--mono);font-weight:600;font-size:13.5px;color:var(--ink);white-space:nowrap}
+  .base-bar{flex:1;min-width:80px;height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+  .base-bar i{display:block;height:100%;background:var(--accent);border-radius:5px}
+  .base-txt{font-size:12px;color:var(--ink-soft)}
+  .base-sobe{font-size:12px;color:var(--ink-soft)}.base-sobe b{color:var(--ink)}
   .plainul{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:5px}
   .resumo{background:var(--surface-3);border:1px solid var(--line-soft);border-left:3px solid var(--accent);border-radius:var(--r-sm);padding:15px 18px;margin:2px 0 12px}
   .resumo ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
@@ -510,6 +518,7 @@ function docWrap(kicker,titulo,sub,subs,body,nota){
  return '<div class="report-head"><div class="meta"><button class="backlink" data-act="back">'+IC.back+' Nova análise</button></div><div class="report-actions"><button class="btn ghost sm" data-act="back">Refazer</button><button class="btn sm" data-act="pdf">Baixar PDF</button></div></div>'+
   '<div class="doc"><div class="doc-band"></div><div class="doc-inner" id="rp"><div class="rep-title"><div class="k">'+esc(kicker)+'</div><h1>'+esc(titulo)+'</h1>'+(sub?'<div class="who2">'+esc(sub)+'</div>':'')+
   '<div class="rep-sub">'+subs.map(function(x){return '<div><div class="l">'+esc(x[0])+'</div><div class="d">'+esc(x[1])+'</div></div>';}).join('')+'</div></div>'+
+  baseBox()+
   body+'<div class="footnote">'+nota+'</div></div></div>';
 }
 function relEmpresa(r,d){
@@ -518,7 +527,7 @@ function relEmpresa(r,d){
   if(op.indice_competitividade)tiles.push('<div class="op"><b>'+esc(op.indice_competitividade.valor)+star(op.indice_competitividade.est)+'</b><span>Índice de competitividade</span></div>');
   (op.kpis_topo||[]).slice(0,2).forEach(function(k){tiles.push('<div class="op"><b>'+esc(k.faixa||'')+star(k.est)+'</b><span>'+esc(k.nome||'')+'</span></div>');});
   if(op.cenario_base_12m)tiles.push('<div class="op"><b>'+esc((op.cenario_base_12m.texto||'').slice(0,14))+star(op.cenario_base_12m.est)+'</b><span>Cenário base 12m</span></div>');
-  s.push(sec('01','One Pager Executivo','<div class="onepager"><h3>Síntese para decisão</h3><div class="op-grid">'+tiles.join('')+'</div>'+(op.conclusao_consultiva?'<div class="op-concl">'+esc(op.conclusao_consultiva)+'</div>':'')+'</div>'+metersRow([['Índice de competitividade',(op.indice_competitividade||{}).valor],['Confiabilidade das fontes',(conf.nota_0_100||cab.confiabilidade_0_100)]])));}
+  s.push(sec('01','One Pager Executivo','<div class="onepager"><h3>Síntese para decisão</h3><div class="op-grid">'+tiles.join('')+'</div>'+(op.conclusao_consultiva?'<div class="op-concl">'+esc(op.conclusao_consultiva)+'</div>':'')+'</div>'+metersRow([['Índice de competitividade',(op.indice_competitividade||{}).valor]])));}
  var _pe=filtra(r.pestel,['fator','leitura']);if(_pe.length)s.push(sec('02','PESTEL — ambiente externo',tbl(['Fator','Leitura','Implicação','Evidência'],_pe.map(function(x){return '<tr><td><b>'+esc(x.fator)+'</b></td><td>'+esc(x.leitura)+'</td><td>'+esc(x.implicacao)+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
  if(r.competitivo){var c=r.competitivo;s.push(sec('03','Análise competitiva — Porter, VRIO, SWOT',(c.porter?'<p class="serif"><b>Porter:</b> '+esc(c.porter)+'</p>':'')+(c.vrio?'<p class="serif"><b>VRIO:</b> '+esc(c.vrio)+'</p>':'')+swotBox(c.swot)));}
  var _kp=filtra(r.kpis,['nome']);if(_kp.length)s.push(sec('04','KPIs em faixa (P5–P95)','<div class="kpi-row">'+_kp.map(function(k){return '<div class="kpi"><div class="kl">'+esc(k.nome)+star(k.est)+'</div><div class="kv">'+esc(k.faixa_p5_p95||'')+'</div>'+kpiRange(k.faixa_p5_p95)+'<div class="kd">'+esc(k.recomendacao||k.interpretacao||'')+'</div></div>';}).join('')+'</div>'));
@@ -527,13 +536,13 @@ function relEmpresa(r,d){
  var _pj=filtra(r.projecoes_12m,['cenario']);if(_pj.length)s.push(sec('06','Projeções 12 meses',tbl(['Cenário','Receita relativa','Margem','Leitura'],_pj.map(function(x){return '<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td class="num-c">'+esc(x.receita_relativa)+'</td><td class="num-c">'+esc(x.margem)+'</td><td>'+esc(x.leitura)+'</td></tr>';}).join(''))));
  var _rm=filtra(r.roadmap,['acao','horizonte']);if(_rm.length)s.push(sec('07','Diagnóstico & Roadmap',tbl(['Horizonte','Ação prioritária'],_rm.map(function(x){return '<tr><td><b>'+esc(x.horizonte)+'</b></td><td>'+esc(x.acao)+'</td></tr>';}).join(''))));
  var nota='<b>Metodologia FAROL360:</b> valores com <span class="star">*</span> são estimativa, não dado observado; a coluna Evidência classifica cada fonte. '+(conf.fontes_cliente_consideradas?'Inclui fontes fornecidas pelo cliente. ':'')+(conf.limitacoes&&conf.limitacoes.length?'<br><b>Limitações:</b> '+conf.limitacoes.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria nem consultoria especializada.'+footFontes();
- return docWrap('Relatório de Análise de Empresa',cab.empresa||d.empresa||'Empresa',(cab.setor||d.setor||'')+' · '+(cab.cidade||d.cidade||''),[['Período',cab.periodo||d.periodo||''],['Modo',cab.modo||d.modo||'Completo'],['Consulta',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+ return docWrap('Relatório de Análise de Empresa',cab.empresa||d.empresa||'Empresa',(cab.setor||d.setor||'')+' · '+(cab.cidade||d.cidade||''),[['Período',cab.periodo||d.periodo||''],['Modo',cab.modo||d.modo||'Completo'],['Consulta',MODELOS[state.modelo].nome]],s.join(''),nota);
 }
 function relGoverno(r,d){
  var cab=r.cabecalho||{},conf=r.confiabilidade||{},s=[],n=1;function pad(){return ('0'+(n++)).slice(-2);}
  var resumoArr=strs(r.resumo_executivo),ind=filtra(r.indicadores,['indicador']),bench=filtra(r.benchmarking,['referencia']),ods=filtra(r.escalas_ods,['dimensao']),temp=filtra(r.temporal,['ano','fato']),sent=filtra(r.sentimento,['periodo','leitura']),hip=filtra(r.hipoteses,['hipotese']),barr=strs(r.barreiras),proj=filtra(r.projecoes,['sem_intervencao','com_intervencao']),gut=filtra(r.gut,['problema']),pdca=filtra(r.pdca,['etapa','objetivo']);
  var sw=r.swot||{},temSwot=(strs(sw.forcas).length+strs(sw.fraquezas).length+strs(sw.oportunidades).length+strs(sw.ameacas).length)>0;
- var meters=metersRow([['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100)],['Integridade dos dados',cab.integridade_0_100]]);
+ var meters=metersRow([['Integridade dos dados',cab.integridade_0_100]]);
  if(resumoArr.length||meters){var resumo=resumoArr.length?'<div class="resumo"><ul>'+resumoArr.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>':'';s.push(sec(pad(),'Resumo executivo',resumo+meters));}
  if(ind.length)s.push(sec(pad(),'Indicadores — município × estado × Brasil',tbl(['Indicador','Unid.','Município','Estado','Brasil','Tend.','Evidência'],ind.map(function(x){return '<tr><td><b>'+esc(x.indicador)+'</b>'+star(x.est)+'</td><td>'+esc(x.unidade||'')+'</td><td class="num-c">'+esc(x.municipio||'')+'</td><td class="num-c">'+esc(x.estado||'')+'</td><td class="num-c">'+esc(x.brasil||'')+'</td><td>'+esc(x.tendencia||'')+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
  if(bench.length)s.push(sec(pad(),'Benchmarking com médias',govBench(bench)));
@@ -550,7 +559,7 @@ function relGoverno(r,d){
  if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
  var lim=strs(conf.limitacoes);
  var nota='<b>Metodologia FAROL360:</b> a coluna Evidência classifica cada dado (oficial → derivado-estadual → analogia-pares → tendencial → proxy); itens com <span class="star">*</span> são estimativa; sentimento é proxy, não intenção de voto. Sem valores monetários. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria.'+footFontes();
- return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Consulta',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+ return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Consulta',MODELOS[state.modelo].nome]],s.join(''),nota);
 }
 function penetPct(t){var s=String(t||'').toLowerCase();if(s.indexOf('alta')>=0)return 88;if(s.indexOf('média')>=0||s.indexOf('media')>=0)return 55;if(s.indexOf('baixa')>=0||s.indexOf('fraca')>=0)return 25;var n=parseNums(t);return n.length?Math.max(0,Math.min(100,n[0])):50;}
 function relPerfil(r,d){
@@ -567,9 +576,33 @@ function relPerfil(r,d){
  if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
  var lim=strs(conf.limitacoes);
  var nota='<b>Metodologia FAROL360:</b> VIS/INT/EMO/IPE são índices de imagem indireta (estimativa), nunca intenção de voto; sinais digitais são proxy; itens com <span class="star">*</span> são estimativa. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui pesquisa registrada.'+footFontes();
- return docWrap('Análise de Figura Pública',cab.figura||d.figura||'Figura Pública',(cab.cargo_partido||'')+(cab.base_geografica?(' · '+cab.base_geografica):''),[['Período',cab.periodo||d.periodo||''],['IPE *',(ind.ipe!=null&&ind.ipe!==''?ind.ipe:'—')+'/100'],['Consulta',MODELOS[state.modelo].nome],['Confiabilidade',(conf.nota_0_100||cab.confiabilidade_0_100||'—')+'/100']],s.join(''),nota);
+ return docWrap('Análise de Figura Pública',cab.figura||d.figura||'Figura Pública',(cab.cargo_partido||'')+(cab.base_geografica?(' · '+cab.base_geografica):''),[['Período',cab.periodo||d.periodo||''],['IPE *',(ind.ipe!=null&&ind.ipe!==''?ind.ipe:'—')+'/100'],['Consulta',MODELOS[state.modelo].nome]],s.join(''),nota);
 }
-function report(){var r=state.relatorio||{};var d=state.dados;return state.promptId==='governo'?relGoverno(r,d):(state.promptId==='perfil'?relPerfil(r,d):relEmpresa(r,d));}
+function baseAnalise(r,d){
+ var fontes=(state.fontes||[]).length;
+ var fontesPts=Math.min(40,fontes*8);
+ var temCliF=(((d&&d.fontes)||'')+'').trim().length>15;
+ var temCliE=(((d&&d.extras)||'')+'').trim().length>15;
+ var cliPts=(temCliF?15:0)+(temCliE?10:0);
+ var obs=0,tot=0;(function scan(o){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(scan);return;}if(Object.prototype.hasOwnProperty.call(o,'est')){tot++;if(o.est===false)obs++;}for(var k in o){var v=o[k];if(v&&typeof v==='object')scan(v);}})(r);
+ var cobPts=tot?Math.round(obs/tot*35):12;
+ var nota=Math.max(8,Math.min(100,fontesPts+cliPts+cobPts));
+ var falta=[];
+ if(!temCliF)falta.push('links ou documentos das suas fontes');
+ if(!temCliE)falta.push('mais contexto sobre o que está sendo analisado');
+ var extra=state.promptId==='perfil'?'números reais que você tenha (pesquisas, métricas de redes)':(state.promptId==='governo'?'relatórios ou indicadores oficiais que você tenha':'dados internos (participação, resultados relativos)');
+ if(falta.length<2)falta.push(extra);
+ var apoio='Apoiada em '+fontes+' fonte'+(fontes===1?'':'s')+' pública'+(fontes===1?'':'s')+((temCliF||temCliE)?' e nos dados que você enviou':'')+'.';
+ return {nota:nota,apoio:apoio,falta:falta.slice(0,2)};
+}
+function baseBox(){var b=state.base;if(!b)return '';
+ return '<div class="base"><div class="base-h">Base desta análise</div>'+
+  '<div class="base-top"><span class="base-nota">Confiabilidade '+b.nota+'/100</span><span class="base-bar"><i style="width:'+b.nota+'%"></i></span></div>'+
+  '<div class="base-txt">'+esc(b.apoio)+'</div>'+
+  (b.falta.length?'<div class="base-sobe">Para elevar a confiabilidade, envie: <b>'+b.falta.map(esc).join('</b> e <b>')+'</b>.</div>':'')+
+  '</div>';
+}
+function report(){var r=state.relatorio||{};var d=state.dados;state.base=baseAnalise(r,d);return state.promptId==='governo'?relGoverno(r,d):(state.promptId==='perfil'?relPerfil(r,d):relEmpresa(r,d));}
 // ---- Painel de administração ----
 const ANALISES_META=[['empresa','Empresa'],['governo','Governo'],['perfil','Figura Pública']];
 const adminState={clientes:[],carregando:false,msg:'',erro:'',novoOpen:false};
