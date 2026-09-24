@@ -28,7 +28,11 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const d = body.dados || {};
-    const model = MODELOS[body.modelo] || MODELOS.sonnet;
+    // A BUSCA sempre usa um modelo rápido (nunca Opus): ela só reúne fatos.
+    // O modelo pesado (Opus) fica reservado para a REDAÇÃO do relatório (/api/analisar).
+    // Opus na busca deixava a etapa lenta demais e a conexão do celular caía ("Load failed").
+    const modeloBusca = body.modelo === 'haiku' ? 'haiku' : 'sonnet';
+    const model = MODELOS[modeloBusca];
     const fontesCliente = d.fontes ? ('\nFontes indicadas pelo cliente: ' + d.fontes) : '';
     const extrasCliente = d.extras ? ('\nDetalhes fornecidos pelo cliente (use para orientar a busca): ' + d.extras) : '';
 
