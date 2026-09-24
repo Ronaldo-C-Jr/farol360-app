@@ -70,7 +70,10 @@ REGRAS:
 7. Tom consultivo: responda ao "e daí?", com implicações práticas.
 8. NUNCA use "N/A", "não aplicável", "não disponível" nem linhas em branco. Se não houver dado real para um item ou uma seção inteira, retorne lista vazia [] ou string vazia — o sistema esconde o que estiver vazio.
 9. Responda EXCLUSIVAMENTE com um objeto JSON válido no formato pedido. Sem texto fora do JSON. Frases curtas.
-10. Se o cliente forneceu detalhes ou pedidos específicos (comparações, gráficos, recortes), incorpore-os às seções e tabelas correspondentes do formato — sem inventar dados e sem criar campos fora do schema.`;
+10. Se o cliente forneceu detalhes ou pedidos específicos (comparações, gráficos, recortes), incorpore-os às seções e tabelas correspondentes do formato — sem inventar dados e sem criar campos fora do schema.
+11. Precisão só com base real: só afirme um VALOR NUMÉRICO quando houver fonte que o sustente (oficial, derivada ou dado aportado pelo cliente). Sem base, prefira leitura qualitativa e mantenha o número em faixa conservadora/central, sempre com "est":true. Nunca fabrique precisão.
+12. Índices de imagem (IPE, VIS, INT, EMO) e projeções são estimativas indiretas: sem dado quantitativo do cliente, trate-os como faixa (evite extremos), marque "est":true e deixe claro na leitura que são estimativas, não medições.
+13. Declare em "limitacoes" todo dado importante que faltou ou não foi encontrado. Só omita (lista vazia) seção irrelevante para o caso — nunca uma ausência relevante.`;
 
 function promptEmpresa(d, contexto) {
   const topicos = Array.isArray(d.topicos) ? d.topicos.join(', ') : (d.topicos || 'nenhum');
