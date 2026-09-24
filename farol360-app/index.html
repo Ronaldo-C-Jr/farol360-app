@@ -203,6 +203,49 @@
   @media (max-width:520px){.barrow{grid-template-columns:120px 1fr 52px}}
   @media (max-width:560px){.who{display:none}}
   @media (max-width:780px){.form-grid{grid-template-columns:1fr}.side{position:static}.doc-inner{padding:24px 20px}.swot{grid-template-columns:1fr}.rep-title h1{font-size:21px}}
+  .ad-cta{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-3);cursor:pointer;font-family:inherit}
+  .ad-cta:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+  .ad-cta-ic{width:38px;height:38px;flex:none;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+  .ad-cta-ic svg{width:22px;height:22px}
+  .ad-cta-tx{flex:1;min-width:0}
+  .ad-cta-t{display:block;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.25}
+  .ad-cta-s{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:2px;line-height:1.4}
+  .ad-cta-arrow{color:var(--accent);font-weight:700;font-size:18px;flex:none}
+  .ad-scroll{min-height:100%;display:flex;justify-content:center;padding:24px 16px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
+  .ad-card{width:100%;max-width:560px;height:max-content;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg);padding:26px 24px}
+  .ad-back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--ink-soft);font-size:13px;font-weight:600;padding:0;margin-bottom:14px;cursor:pointer;font-family:inherit}
+  .ad-back:hover{color:var(--ink)}
+  .ad-h1{font-family:var(--serif);font-weight:600;font-size:22px;margin:14px 0 0}
+  .ad-lead{color:var(--ink-soft);font-size:14px;margin-top:9px}
+  .ad-sech{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;margin:22px 0 11px}
+  .ad-perfis{display:grid;grid-template-columns:1fr;gap:9px}
+  .ad-perfil{display:flex;align-items:center;gap:10px;text-align:left;padding:12px 13px;border:1px solid var(--line);border-radius:11px;background:var(--surface-3);font-size:13.5px;font-weight:500;color:var(--ink);cursor:pointer;font-family:inherit}
+  .ad-perfil:hover{border-color:var(--accent)}
+  .ad-perfil.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+  .ad-dot{width:9px;height:9px;border-radius:50%;border:2px solid var(--ink-faint);flex:none}
+  .ad-perfil.on .ad-dot{border-color:var(--accent);background:var(--accent)}
+  .ad-q{padding:13px 0;border-bottom:1px solid var(--line-soft)}.ad-q:last-child{border-bottom:none}
+  .ad-qt{font-size:14px;margin-bottom:8px}
+  .ad-scale{display:flex;gap:7px}
+  .ad-opt{flex:1;padding:8px 6px;border:1px solid var(--line);border-radius:9px;background:var(--surface-3);font-size:12.5px;font-weight:500;color:var(--ink-soft);cursor:pointer;font-family:inherit;text-align:center}
+  .ad-opt:hover{border-color:var(--accent)}
+  .ad-opt.on{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:600}
+  .ad-msg{font-size:12px;color:var(--ink-faint);text-align:center;margin-top:9px}
+  .ad-restop{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-top:6px}
+  .ad-gauge{--p:0;width:88px;height:88px;border-radius:50%;flex:none;background:conic-gradient(var(--brand) calc(var(--p)*1%),var(--surface-2) 0);display:grid;place-items:center}
+  .ad-gauge .in{width:66px;height:66px;border-radius:50%;background:var(--surface);display:grid;place-items:center;text-align:center}
+  .ad-gauge .n{font-family:var(--mono);font-weight:600;font-size:18px;line-height:1}
+  .ad-gauge .l{font-size:9px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+  .ad-nk{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);font-weight:500}
+  .ad-nh{font-family:var(--serif);font-size:20px;font-weight:600;margin-top:3px}
+  .ad-box{background:var(--surface-3);border:1px solid var(--line-soft);border-left:3px solid var(--accent);border-radius:11px;padding:14px 16px;margin-top:15px}
+  .ad-box h3{font-size:14.5px;font-weight:600;margin:0 0 5px}.ad-box p{margin:0;color:var(--ink-soft);font-size:13.5px}
+  .ad-box .rec{color:var(--accent-ink);font-weight:600}
+  .ad-pains{margin:12px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-soft)}
+  .ad-nota{font-size:12px;color:var(--ink-faint);margin-top:15px;line-height:1.6}.ad-nota b{color:var(--ink-soft)}
+  .ad-ctas{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  .ad-ctas .btn{width:auto;flex:1;min-width:150px;margin-top:0;text-decoration:none}
+  .btn.wa{background:var(--brand);color:#20140a}
   @page{margin:16mm 14mm}
   @media print{
     .demo-bar,.topbar,.report-head,.backlink{display:none!important}
@@ -314,7 +357,7 @@ const PROMPTS={
 const app=document.getElementById('app');
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function go(v){state.view=v;render();const m=document.querySelector('.main');if(m)m.scrollTo(0,0);window.scrollTo(0,0);}
-function render(){if(state.view==='login')return renderLogin();app.innerHTML=shell(body());bindCommon();if(state.view==='form')bindForm();if(state.view==='admin')bindAdmin();}
+function render(){if(state.view==='login')return renderLogin();if(state.view==='autodiag')return renderAutodiag();app.innerHTML=shell(body());bindCommon();if(state.view==='form')bindForm();if(state.view==='admin')bindAdmin();}
 function shell(b){const c=state.cliente;return ''+
  '<div class="topbar"><div class="brand">'+farol(26)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div><div class="spacer"></div>'+
  '<div class="saldo" title="Saldo de créditos"><span class="sl">Saldo</span><span class="sv">'+saldoBR(c&&c.saldo)+'</span></div>'+
@@ -333,6 +376,7 @@ function renderLogin(){
    '<div class="login-note">Acesso restrito a clientes Gênesis / Farol360. As credenciais são cadastradas pelo administrador.</div>'+
    '<button class="btn ghost sm" id="btnInstalar" type="button" hidden style="width:100%;margin-top:14px">'+farol(15)+' Instalar o app</button>'+
    '<div class="hint" id="iosHint" hidden style="text-align:center;margin-top:9px">No iPhone, toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.</div>'+
+   '<button class="ad-cta" id="btnAutodiag" type="button"><span class="ad-cta-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M4 15.5a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15.5l4.2-3.4" stroke="var(--brand)" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.6" fill="var(--brand)"/></svg></span><span class="ad-cta-tx"><span class="ad-cta-t">Veja o quanto você precisa da gente</span><span class="ad-cta-s">Autodiagnóstico de 1 minuto — onde o FAROL360 ilumina o seu caminho</span></span><span class="ad-cta-arrow">›</span></button>'+
    '</form></div>';
   document.getElementById('lf').addEventListener('submit',async e=>{e.preventDefault();
    const btn=document.getElementById('btnEntrar'),errEl=document.getElementById('loginErr');
@@ -348,7 +392,66 @@ function renderLogin(){
      go('catalog');
    }catch(err){errEl.textContent=(err&&err.message)||'Não foi possível entrar.';errEl.hidden=false;btn.disabled=false;btn.textContent=txt;}
   });
+  var ba=document.getElementById('btnAutodiag');if(ba)ba.addEventListener('click',function(){go('autodiag');});
   atualizarInstalar();
+}
+// ---- Autodiagnóstico (educação/qualificação, pré-login) ----
+var AD_PERFIS=[
+ {id:'empresa',rot:'Dirijo ou assessoro uma empresa',nome:'Análise de Empresa',desc:'um diagnóstico competitivo — PESTEL, Porter, SWOT, KPIs, mercado, oportunidades e nichos'},
+ {id:'governo',rot:'Atuo na gestão pública (prefeitura, secretaria, câmara)',nome:'Avaliação de Governo',desc:'uma avaliação com indicadores comparados (município × estado × Brasil), ODS, SWOT, GUT/PDCA e plano de ação'},
+ {id:'figura',rot:'Sou ou assessoro uma figura pública / candidatura',nome:'Análise de Figura Pública',desc:'uma leitura de imagem, base de apoio, riscos, públicos e projeções'},
+ {id:'consultor',rot:'Sou consultor/assessor e atendo clientes assim',nome:'as três análises (Empresa, Governo e Figura Pública)',desc:'a sua linha de produção para entregar diagnósticos ao cliente em minutos'}
+];
+var AD_QS=[
+ 'Perco horas juntando informação pública dispersa antes de decidir ou de uma reunião.',
+ 'Preciso levar para a mesa um panorama com fontes, não só a minha opinião.',
+ 'Costumo entrar em reuniões, propostas ou decisões sem um diagnóstico prévio do cenário.',
+ 'Tenho dificuldade de comparar a minha situação com referências (concorrentes, outros municípios, outras figuras).',
+ 'Queria enxergar riscos e oportunidades de forma organizada, e não solta.',
+ 'Preciso de material que sustente decisões diante de terceiros (chefia, cliente, eleitor).',
+ 'Já tentei usar IA genérica e o resultado veio sem método, sem fonte ou parecendo inventado.',
+ 'Quando preciso de um estudo desses, ele demora demais ou custa caro.'
+];
+var adState={perfil:null,resp:[]};
+function renderAutodiag(){
+ adState={perfil:null,resp:new Array(AD_QS.length).fill(null)};
+ var perfisHtml=AD_PERFIS.map(function(p,i){return '<button class="ad-perfil" type="button" data-p="'+i+'"><span class="ad-dot"></span><span>'+esc(p.rot)+'</span></button>';}).join('');
+ var qsHtml=AD_QS.map(function(t,i){var o=['Não','Às vezes','Sim'].map(function(lb,v){return '<button type="button" class="ad-opt" data-q="'+i+'" data-v="'+v+'">'+lb+'</button>';}).join('');return '<div class="ad-q"><div class="ad-qt">'+esc(t)+'</div><div class="ad-scale">'+o+'</div></div>';}).join('');
+ app.innerHTML='<div class="ad-scroll"><div class="ad-card">'+
+  '<div id="adQuiz"><button class="ad-back" data-adback>'+IC.back+' Voltar ao login</button>'+
+  '<div style="display:flex;align-items:center;gap:11px">'+farol(38)+'<div><div class="eyebrow">Gênesis Consultoria — Inteligência Estratégica</div><div style="font-weight:700;font-size:16px">FAROL<span style="color:var(--brand)">360</span></div></div></div>'+
+  '<h1 class="ad-h1">O farol pode iluminar o seu caminho?</h1>'+
+  '<p class="ad-lead">Responda em um minuto e descubra a sua pontuação e qual análise do FAROL360 resolve a sua situação — da sua empresa, da sua gestão ou da sua imagem pública.</p>'+
+  '<div class="ad-sech">1 · O que descreve melhor você hoje</div><div class="ad-perfis">'+perfisHtml+'</div>'+
+  '<div class="ad-sech">2 · O quanto isto vale para você</div>'+qsHtml+
+  '<button class="btn block" id="adVer" disabled style="margin-top:20px">'+farol(15,'#fff')+' Ver meu resultado</button>'+
+  '<div class="ad-msg" id="adMsg">Escolha um perfil e responda as afirmações.</div></div>'+
+  '<div id="adRes" hidden><button class="ad-back" data-adback>'+IC.back+' Voltar ao login</button>'+
+  '<div style="display:flex;align-items:center;gap:11px;margin-bottom:4px">'+farol(34)+'<div class="eyebrow">Seu autodiagnóstico · Gênesis Consultoria</div></div>'+
+  '<div class="ad-restop"><div class="ad-gauge" id="adGauge"><div class="in"><div><div class="n" id="adScore">0</div><div class="l">de 16</div></div></div></div><div><div class="ad-nk" id="adNk">Nível</div><div class="ad-nh" id="adNh">—</div></div></div>'+
+  '<div class="ad-box"><h3>Para o seu perfil, o FAROL360 entrega:</h3><p><span class="rec" id="adRecNome"></span> — <span id="adRecDesc"></span>.</p></div>'+
+  '<div id="adPainsWrap" hidden><div class="ad-sech" style="margin-bottom:5px">O que isso resolve pra você</div><ul class="ad-pains" id="adPains"></ul></div>'+
+  '<p class="ad-nota"><b>Por que não é uma busca comum de IA:</b> o FAROL360 aplica a metodologia da Gênesis — OSINT, análise territorial, leitura comportamental e estatística aplicada — em matrizes e frameworks (SWOT, PESTEL, ODS, indicadores comparados). Cada dado vem com a fonte, o que é estimativa é marcado e as limitações são declaradas.</p>'+
+  '<div class="ad-ctas"><a class="btn wa" id="adWa" href="#" target="_blank" rel="noopener">Falar com a Gênesis</a><button class="btn ghost" data-adback type="button">Voltar ao login</button></div></div>'+
+  '</div></div>';
+ app.querySelectorAll('[data-adback]').forEach(function(el){el.addEventListener('click',function(){go('login');});});
+ app.querySelectorAll('.ad-perfil').forEach(function(b){b.addEventListener('click',function(){adState.perfil=+b.dataset.p;app.querySelectorAll('.ad-perfil').forEach(function(x){x.classList.remove('on');});b.classList.add('on');adChecar();});});
+ app.querySelectorAll('.ad-opt').forEach(function(o){o.addEventListener('click',function(){adState.resp[+o.dataset.q]=+o.dataset.v;o.parentElement.querySelectorAll('.ad-opt').forEach(function(x){x.classList.remove('on');});o.classList.add('on');adChecar();});});
+ document.getElementById('adVer').addEventListener('click',adMostrar);
+ window.scrollTo(0,0);
+}
+function adChecar(){var r=adState.resp.filter(function(x){return x!==null;}).length;var v=document.getElementById('adVer');if(v)v.disabled=!(adState.perfil!==null&&r===AD_QS.length);var m=document.getElementById('adMsg');if(m)m.textContent=adState.perfil===null?'Escolha um perfil e responda as afirmações.':(r<AD_QS.length?('Faltam '+(AD_QS.length-r)+' de '+AD_QS.length+' afirmações.'):'Tudo pronto — veja o seu resultado.');}
+function adMostrar(){var total=adState.resp.reduce(function(a,b){return a+(b||0);},0);var p=AD_PERFIS[adState.perfil];var nk,nh;
+ if(total>=11){nk='Necessidade alta';nh='Faz diferença agora';}else if(total>=6){nk='Necessidade média';nh='Há ganho claro esperando';}else{nk='Necessidade pontual';nh='Útil quando precisar decidir';}
+ document.getElementById('adScore').textContent=total;document.getElementById('adGauge').style.setProperty('--p',(total/16*100));
+ document.getElementById('adNk').textContent=nk;document.getElementById('adNh').textContent=nh;
+ document.getElementById('adRecNome').textContent=p.nome;document.getElementById('adRecDesc').textContent=p.desc;
+ var fortes=[];AD_QS.forEach(function(t,i){if(adState.resp[i]===2)fortes.push(t);});
+ var pw=document.getElementById('adPainsWrap'),ul=document.getElementById('adPains');ul.innerHTML='';
+ if(fortes.length){pw.hidden=false;fortes.slice(0,5).forEach(function(t){var li=document.createElement('li');li.textContent=t;ul.appendChild(li);});}else pw.hidden=true;
+ var texto='Olá! Fiz o autodiagnóstico FAROL360 (perfil: '+p.nome+', pontuação '+total+'/16) e quero conversar.';
+ document.getElementById('adWa').href='https://wa.me/'+CONTATO.whats+'?text='+encodeURIComponent(texto);
+ document.getElementById('adQuiz').hidden=true;document.getElementById('adRes').hidden=false;window.scrollTo(0,0);
 }
 function catalog(){var lib=liberadas();var semSaldo=(state.cliente&&Number(state.cliente.saldo)||0)<PRECO_CENT.haiku;
  var disp=Object.values(PROMPTS).filter(function(p){return lib.indexOf(p.id)>=0;});
@@ -578,11 +681,13 @@ function atualizarInstalar(){
   var btn=document.getElementById('btnInstalar');if(!btn)return;
   var hint=document.getElementById('iosHint');
   var standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  if(standalone){btn.hidden=true;if(hint)hint.hidden=true;return;} // já instalado: esconde
   var isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent||'');
-  if(standalone){btn.hidden=true;if(hint)hint.hidden=true;return;}
-  if(_deferredPrompt){btn.hidden=false;if(hint)hint.hidden=true;btn.onclick=async function(){if(!_deferredPrompt)return;_deferredPrompt.prompt();try{await _deferredPrompt.userChoice;}catch(e){}_deferredPrompt=null;btn.hidden=true;};}
-  else if(isiOS){btn.hidden=false;btn.onclick=function(){if(hint)hint.hidden=!hint.hidden;};}
-  else{btn.hidden=true;if(hint)hint.hidden=true;}
+  btn.hidden=false; // sempre visível quando ainda não instalado
+  btn.onclick=async function(){
+    if(_deferredPrompt){_deferredPrompt.prompt();try{await _deferredPrompt.userChoice;}catch(e){}_deferredPrompt=null;btn.hidden=true;if(hint)hint.hidden=true;return;}
+    if(hint){hint.innerHTML=isiOS?'No iPhone (Safari), toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.':'No navegador, abra o menu (⋮ ou ⋯) e escolha <b>Instalar aplicativo</b> / <b>Adicionar à tela inicial</b>.';hint.hidden=!hint.hidden;}
+  };
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();_deferredPrompt=e;atualizarInstalar();});
 window.addEventListener('appinstalled',function(){_deferredPrompt=null;var b=document.getElementById('btnInstalar');if(b)b.hidden=true;var h=document.getElementById('iosHint');if(h)h.hidden=true;});
