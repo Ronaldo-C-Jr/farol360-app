@@ -191,6 +191,16 @@
   .base-bar i{display:block;height:100%;background:var(--accent);border-radius:5px}
   .base-txt{font-size:12px;color:var(--ink-soft)}
   .base-sobe{font-size:12px;color:var(--ink-soft)}.base-sobe b{color:var(--ink)}
+  .como{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:15px 18px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .como-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin-bottom:9px}
+  .como-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-soft)}
+  .como-steps b{color:var(--ink)}
+  .entrega{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;padding:11px 13px;background:var(--surface-3);border:1px solid var(--line-soft);border-radius:var(--r-sm);line-height:1.5}
+  .entrega b{color:var(--ink)}
+  .usar{background:var(--accent-soft);border-radius:var(--r-sm);padding:15px 18px;margin-top:24px}
+  .usar-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink);font-weight:700;margin-bottom:9px}
+  .usar-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
+  .usar-steps b{color:var(--accent-ink)}
   .plainul{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:5px}
   .resumo{background:var(--surface-3);border:1px solid var(--line-soft);border-left:3px solid var(--accent);border-radius:var(--r-sm);padding:15px 18px;margin:2px 0 12px}
   .resumo ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
@@ -335,6 +345,7 @@ const PROMPTS={
   empresa:{id:'empresa',icone:IC.empresa,base:'empresa_v4.0_pro',titulo:'Análise de Empresa',versao:'v4.0-pro',ligado:true,
     subtitulo:'Perfil, mercado, GEPS, oportunidades e nichos',
     descricao:'Diagnóstico competitivo: PESTEL, Porter, VRIO, SWOT, KPIs em faixa, segmentos, projeções e roadmap, com One Pager executivo.',
+    entrega:'One Pager executivo, matrizes (PESTEL, Porter, SWOT), KPIs em faixa, segmentos, projeções de 12 meses e um roadmap de ações.',
     campos:[{id:'empresa',label:'Nome da empresa',tipo:'text',obrig:true,placeholder:'Ex.: Aurora Log Transportes'},
      {id:'setor',label:'Setor de atuação',tipo:'text',obrig:true,placeholder:'Ex.: Logística rodoviária'},
      {id:'cidade',label:'Cidade / sede',tipo:'text',obrig:true,placeholder:'Ex.: Vitória da Conquista - BA'},
@@ -345,6 +356,7 @@ const PROMPTS={
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links, relatórios internos ou observações a considerar…'}]},
   perfil:{id:'perfil',icone:IC.perfil,base:'figura_publica_v3.0',titulo:'Análise de Figura Pública',versao:'v3.0',ligado:true,
     subtitulo:'Imagem, popularidade e potencial político',descricao:'Indicadores VIS/INT/EMO/IPE, linha do tempo, SWOT de imagem, públicos, projeções e confiabilidade.',
+    entrega:'indicadores de imagem, linha do tempo de eventos, SWOT de imagem, públicos e penetração, projeções, simulação de alianças e recomendações.',
     campos:[{id:'figura',label:'Pessoa / figura pública',tipo:'text',obrig:true,placeholder:'Ex.: nome do vereador, prefeito, deputado…'},
      {id:'periodo',label:'Período da análise',tipo:'text',obrig:true,placeholder:'Ex.: jan–set/2026'},
      {id:'tipo',label:'Tipo de diagnóstico',tipo:'seg',obrig:true,opcoes:['Político','Social','Ambos'],padrao:'Ambos'},
@@ -354,6 +366,7 @@ const PROMPTS={
      {id:'fontes',label:'Fontes próprias (opcional)',tipo:'fontes',placeholder:'Cole links de notícias, redes oficiais, pesquisas ou observações a considerar…'}]},
   governo:{id:'governo',icone:IC.governo,base:'governo_v2.9.0',titulo:'Avaliação de Governo',versao:'v2.9.0',ligado:true,
     subtitulo:'Município, estado ou federal',descricao:'13 seções com nível de evidência, linha do tempo, ODS, SWOT, GUT e PDCA — estimativa transparente.',
+    entrega:'indicadores comparados (município × estado × Brasil), escalas ODS, análise temporal, SWOT, matriz GUT, ciclo PDCA, projeções e um plano de ação.',
     campos:[{id:'municipio',label:'Município / UF',tipo:'text',obrig:true,placeholder:'Ex.: Vitória da Conquista - BA'},
      {id:'instancia',label:'Instância avaliada',tipo:'select',obrig:true,opcoes:['Prefeitura (municipal)','Secretaria municipal','Governo estadual','Órgão federal']},
      {id:'area',label:'Área temática',tipo:'select',obrig:true,opcoes:['Saúde','Educação','Assistência Social','Segurança','Infraestrutura','Geral']},
@@ -468,7 +481,8 @@ function catalog(){var lib=liberadas();var semSaldo=(state.cliente&&Number(state
   '<h3>'+esc(p.titulo)+(bloq?' <span class="tagpill">sem saldo</span>':'')+'</h3><p>'+esc(p.descricao)+'</p>'+
   '<div class="foot"><span>base:</span><span class="v">'+esc(p.versao)+'</span><span class="go">'+(bloq?'':'Abrir ›')+'</span></div></button>';}).join('');
  var aviso=semSaldo?comprarBox('Seu saldo de créditos acabou.'):'';
- return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div>'+aviso+'<div class="cards">'+cards+'</div>';}
+ var como='<div class="como"><div class="como-h">Como funciona · 3 passos</div><ol class="como-steps"><li><b>Escolha</b> a análise abaixo (empresa, governo ou figura pública).</li><li><b>Preencha</b> os dados e a profundidade — quanto mais detalhes e fontes você enviar, mais confiável o resultado.</li><li><b>Receba</b> o relatório com gráficos, recomendações e fontes, e baixe em PDF.</li></ol></div>';
+ return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div>'+como+aviso+'<div class="cards">'+cards+'</div>';}
 function fieldHTML(f){const v=state.dados[f.id];const req=f.obrig?'<span class="req">*</span>':'';
  if(f.tipo==='text')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><input id="f_'+f.id+'" data-f="'+f.id+'" type="text" placeholder="'+esc(f.placeholder||'')+'" value="'+esc(v||'')+'"></div>';
  if(f.tipo==='select'){const o=f.opcoes.map(x=>'<option '+(v===x?'selected':'')+'>'+esc(x)+'</option>').join('');return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><select id="f_'+f.id+'" data-f="'+f.id+'"><option value="" '+(!v?'selected':'')+' disabled>Selecione…</option>'+o+'</select></div>';}
@@ -480,7 +494,7 @@ function fieldHTML(f){const v=state.dados[f.id];const req=f.obrig?'<span class="
 function form(){const p=PROMPTS[state.promptId];const fs=p.campos.map(fieldHTML).join('');
  const saldo=(state.cliente&&Number(state.cliente.saldo))||0;const preco=PRECO_CENT[state.modelo];const pode=saldo>=preco;
  const mods=Object.entries(MODELOS).map(([k,m])=>'<label class="modopt '+(state.modelo===k?'on':'')+(saldo<PRECO_CENT[k]?' off':'')+'"><input type="radio" name="modelo" value="'+k+'" '+(state.modelo===k?'checked':'')+' data-mod><span><span class="mm">'+esc(m.nome)+'</span><span class="md">'+esc(m.desc)+'</span></span><span class="price">'+precoBR(m.preco)+'</span></label>').join('');
- return '<button class="backlink" data-act="back">'+IC.back+' Catálogo</button><div class="form-grid"><div class="form-card"><h2>'+esc(p.titulo)+'</h2><div class="sub">'+esc(p.subtitulo)+'</div><form id="tf">'+fs+'</form>'+(state.erro?'<div class="errbox"><b>Não foi possível gerar.</b>'+esc(state.erro)+'</div>':'')+'</div>'+
+ return '<button class="backlink" data-act="back">'+IC.back+' Catálogo</button><div class="form-grid"><div class="form-card"><h2>'+esc(p.titulo)+'</h2><div class="sub">'+esc(p.subtitulo)+'</div>'+(p.entrega?'<div class="entrega"><b>Você vai receber:</b> '+esc(p.entrega)+'</div>':'')+'<form id="tf">'+fs+'</form>'+(state.erro?'<div class="errbox"><b>Não foi possível gerar.</b>'+esc(state.erro)+'</div>':'')+'</div>'+
   '<div class="side"><div class="panel"><h4>Tipo de consulta</h4><div class="modrow">'+mods+'</div><div class="cost"><span class="lbl">Valor deste relatório</span><span class="val" id="cv">'+precoBR(MODELOS[state.modelo].preco)+'</span></div><div class="cost" style="border-top:none;padding-top:4px;margin-top:0"><span class="lbl">Seu saldo</span><span class="val" id="sv2" style="font-size:13px;color:'+(pode?'var(--good)':'var(--crit)')+'">'+saldoBR(saldo)+'</span></div></div>'+
   '<button class="btn block" data-act="gerar" id="btnGerar" '+(pode?'':'disabled')+'>'+farol(15,'#fff')+' Gerar relatório</button><div class="hint" id="genHint" style="text-align:center">'+(pode?'Cada relatório gerado consome do seu saldo de créditos.':'Saldo insuficiente para esta consulta. Escolha uma consulta mais leve ou compre mais créditos.')+'</div><div id="cpWrap" style="margin-top:14px"'+(pode?' hidden':'')+'>'+comprarBox()+'</div></div></div>';}
 function atualizarConsulta(){var saldo=(state.cliente&&Number(state.cliente.saldo))||0;var preco=PRECO_CENT[state.modelo];var pode=saldo>=preco;
@@ -519,7 +533,7 @@ function docWrap(kicker,titulo,sub,subs,body,nota){
   '<div class="doc"><div class="doc-band"></div><div class="doc-inner" id="rp"><div class="rep-title"><div class="k">'+esc(kicker)+'</div><h1>'+esc(titulo)+'</h1>'+(sub?'<div class="who2">'+esc(sub)+'</div>':'')+
   '<div class="rep-sub">'+subs.map(function(x){return '<div><div class="l">'+esc(x[0])+'</div><div class="d">'+esc(x[1])+'</div></div>';}).join('')+'</div></div>'+
   baseBox()+
-  body+'<div class="footnote">'+nota+'</div></div></div>';
+  body+comoUsarBox()+'<div class="footnote">'+nota+'</div></div></div>';
 }
 function relEmpresa(r,d){
  var cab=r.cabecalho||{},op=r.one_pager||{},conf=r.confiabilidade||{},s=[];
@@ -594,6 +608,14 @@ function baseAnalise(r,d){
  if(falta.length<2)falta.push(extra);
  var apoio='Apoiada em '+fontes+' fonte'+(fontes===1?'':'s')+' pública'+(fontes===1?'':'s')+((temCliF||temCliE)?' e nos dados que você enviou':'')+'.';
  return {nota:nota,apoio:apoio,falta:falta.slice(0,2)};
+}
+function comoUsarBox(){
+ return '<div class="usar"><div class="usar-h">Como aproveitar este relatório</div><ol class="usar-steps">'+
+  '<li>Leve as <b>recomendações</b> e a conclusão direto para a sua decisão ou reunião.</li>'+
+  '<li>Comece pelo que as matrizes destacam (<b>SWOT, GUT</b>): é onde está o maior retorno.</li>'+
+  '<li>Quer mais precisão? <b>Envie suas fontes e dados</b> no formulário e gere de novo — a confiabilidade sobe.</li>'+
+  '<li>Refaça a cada período para <b>comparar a evolução</b>.</li>'+
+  '</ol></div>';
 }
 function baseBox(){var b=state.base;if(!b)return '';
  return '<div class="base"><div class="base-h">Base desta análise</div>'+
