@@ -245,41 +245,61 @@ export default async function handler(req, res) {
         : promptEmpresa(dados, contexto) + '\n\n' + SCHEMA_EMPRESA;
     const userPrompt = base + '\n\nResponda APENAS com o objeto JSON, começando com { e terminando com }. Sem texto antes ou depois, sem cercas de código.';
 
-    const ac = new AbortController();
-    const to = setTimeout(() => ac.abort(), 240000);
-    let r;
-    try {
-      r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST', signal: ac.signal,
-        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: m.id, max_tokens: m.max, system: SYSTEM, messages: [{ role: 'user', content: userPrompt }] }),
-      });
-    } catch (e) { clearTimeout(to); res.status(504).json({ erro: 'A redação do relatório demorou demais. Tente de novo, ou use o modelo Haiku.' }); return; }
-    clearTimeout(to);
+    // --- Resposta em STREAMING com heartbeat (correção do iPhone) ---
+    // O Safari/WebKit do iOS derruba requisições POST que passam ~60s sem receber
+    // NENHUM byte de resposta. A redação com IA leva mais que isso, então o iPhone
+    // abortava a conexão ANTES do relatório chegar — mas o servidor seguia rodando,
+    // gerava o relatório e DEBITAVA o crédito. Resultado: crédito descontado e nada
+    // entregue (só no iPhone; PC/Android toleram requisições longas).
+    // Solução: enviar os cabeçalhos na hora e um espaço a cada 12s para manter a
+    // conexão viva. Para PC/Android nada muda — são só espaços antes do JSON, que o
+    // r.json() do cliente ignora. As checagens de auth/saldo acima já responderam
+    // com status normal (401/402/403) ANTES deste ponto, então continuam iguais.
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+    try { res.write(' '); } catch (e) {}
+    const hb = setInterval(function () { try { res.write(' '); } catch (e) {} }, 12000);
+    let encerrado = false;
+    function fim(obj) {
+      if (encerrado) return; encerrado = true;
+      clearInterval(hb);
+      try { res.write(JSON.stringify(obj)); } catch (e) {}
+      try { res.end(); } catch (e) {}
+    }
 
-    if (!r.ok) {
-      const t = await r.text();
-      console.error('Anthropic HTTP', r.status, t);
-      res.status(502).json({ erro: 'A IA recusou a chamada (HTTP ' + r.status + '): ' + t.slice(0, 400), detalhe: t.slice(0, 400) });
-      return;
+    try {
+      const ac = new AbortController();
+      const to = setTimeout(() => ac.abort(), 240000);
+      let r;
+      try {
+        r = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST', signal: ac.signal,
+          headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: m.id, max_tokens: m.max, system: SYSTEM, messages: [{ role: 'user', content: userPrompt }] }),
+        });
+      } catch (e) { clearTimeout(to); fim({ ok: false, erro: 'A redação do relatório demorou demais. Tente de novo, ou use o modelo Haiku.' }); return; }
+      clearTimeout(to);
+
+      if (!r.ok) {
+        const t = await r.text();
+        console.error('Anthropic HTTP', r.status, t);
+        fim({ ok: false, erro: 'A IA recusou a chamada (HTTP ' + r.status + '): ' + t.slice(0, 400), detalhe: t.slice(0, 400) });
+        return;
+      }
+      const j = await r.json();
+      const texto = (Array.isArray(j.content) ? j.content.map(function (b) { return (b && typeof b.text === 'string') ? b.text : ''; }).join('') : '').trim();
+      if (!texto) { fim({ ok: false, erro: 'A IA retornou conteúdo vazio (stop_reason=' + (j.stop_reason || '?') + ').' }); return; }
+      let relatorio;
+      try { relatorio = JSON.parse(extrairJSON(texto)); }
+      catch (e) { fim({ ok: false, erro: 'A IA não devolveu JSON válido (stop_reason=' + (j.stop_reason || '?') + '). Início: ' + texto.slice(0, 160) + ' […] Fim: ' + texto.slice(-160) }); return; }
+      // --- Débito atômico + registro (só após o relatório ser gerado com sucesso) ---
+      const deb = await sbDebitar(uid, promptId, modelo, preco, tituloDe(promptId, dados));
+      const saldo = (deb && typeof deb.saldo === 'number') ? deb.saldo : undefined;
+      fim({ ok: true, relatorio: relatorio, saldo: saldo, uso: j.usage || null, modelo: m.id });
+    } catch (e) {
+      fim({ ok: false, erro: 'Falha interna ao redigir o relatório.', detalhe: String(e).slice(0, 300) });
     }
-    const j = await r.json();
-    const texto = (Array.isArray(j.content) ? j.content.map(function (b) { return (b && typeof b.text === 'string') ? b.text : ''; }).join('') : '').trim();
-    if (!texto) {
-      res.status(502).json({ erro: 'A IA retornou conteúdo vazio (stop_reason=' + (j.stop_reason || '?') + ').' });
-      return;
-    }
-    let relatorio;
-    try { relatorio = JSON.parse(extrairJSON(texto)); }
-    catch (e) {
-      res.status(502).json({ erro: 'A IA não devolveu JSON válido (stop_reason=' + (j.stop_reason || '?') + '). Início: ' + texto.slice(0, 160) + ' […] Fim: ' + texto.slice(-160) });
-      return;
-    }
-    // --- Débito atômico + registro (relatório já gerado com sucesso) ---
-    const deb = await sbDebitar(uid, promptId, modelo, preco, tituloDe(promptId, dados));
-    const saldo = (deb && typeof deb.saldo === 'number') ? deb.saldo : undefined;
-    res.status(200).json({ ok: true, relatorio, saldo: saldo, uso: j.usage || null, modelo: m.id });
   } catch (e) {
+    if (res.headersSent) { try { res.end(); } catch (_) {} return; }
     res.status(500).json({ erro: 'Falha interna do servidor.', detalhe: String(e).slice(0, 300) });
   }
 }

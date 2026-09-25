@@ -57,39 +57,62 @@ export default async function handler(req, res) {
     const maxUses = body.promptId === 'governo' ? 6 : 4;
     const deadline = Date.now() + 150000;
     const messages = [{ role: 'user', content: prompt }];
-    let j = null;
-    for (let it = 0; it < 4; it++) {
-      const rem = deadline - Date.now();
-      if (rem < 4000) break;
-      const ac = new AbortController();
-      const to = setTimeout(() => ac.abort(), rem);
-      let r;
-      try {
-        r = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST', signal: ac.signal,
-          headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: model, max_tokens: 2500, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxUses }], messages: messages }),
-        });
-      } catch (e) { clearTimeout(to); res.status(504).json({ erro: 'A pesquisa na web demorou demais. Tente de novo.' }); return; }
-      clearTimeout(to);
-      if (!r.ok) { const t = await r.text(); console.error('WS HTTP', r.status, t); res.status(502).json({ erro: 'Busca recusada (HTTP ' + r.status + '): ' + t.slice(0, 300) }); return; }
-      j = await r.json();
-      if (j.stop_reason === 'pause_turn' && Array.isArray(j.content)) { messages.push({ role: 'assistant', content: j.content }); continue; }
-      break;
+
+    // --- Resposta em STREAMING com heartbeat (correção do iPhone) ---
+    // O Safari/WebKit do iOS derruba requisições POST que passam ~60s sem receber
+    // nenhum byte. A busca na web pode passar disso; enviar cabeçalhos na hora e um
+    // espaço a cada 12s mantém a conexão viva. PC/Android não mudam — o cliente só
+    // ignora os espaços antes do JSON. A checagem de sessão (401) acima já respondeu
+    // com status normal ANTES deste ponto.
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+    try { res.write(' '); } catch (e) {}
+    const hb = setInterval(function () { try { res.write(' '); } catch (e) {} }, 12000);
+    let encerrado = false;
+    function fim(obj) {
+      if (encerrado) return; encerrado = true;
+      clearInterval(hb);
+      try { res.write(JSON.stringify(obj)); } catch (e) {}
+      try { res.end(); } catch (e) {}
     }
-    if (!j) { res.status(504).json({ erro: 'A pesquisa na web demorou demais. Tente de novo.' }); return; }
 
-    const fontes = [];
-    (Array.isArray(j.content) ? j.content : []).forEach(function (b) {
-      if (b && b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
-        b.content.forEach(function (rs) { if (rs && rs.url) fontes.push({ url: rs.url, title: rs.title || rs.url }); });
+    try {
+      let j = null;
+      for (let it = 0; it < 4; it++) {
+        const rem = deadline - Date.now();
+        if (rem < 4000) break;
+        const ac = new AbortController();
+        const to = setTimeout(() => ac.abort(), rem);
+        let r;
+        try {
+          r = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST', signal: ac.signal,
+            headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: model, max_tokens: 2500, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxUses }], messages: messages }),
+          });
+        } catch (e) { clearTimeout(to); fim({ ok: false, erro: 'A pesquisa na web demorou demais. Tente de novo.' }); return; }
+        clearTimeout(to);
+        if (!r.ok) { const t = await r.text(); console.error('WS HTTP', r.status, t); fim({ ok: false, erro: 'Busca recusada (HTTP ' + r.status + '): ' + t.slice(0, 300) }); return; }
+        j = await r.json();
+        if (j.stop_reason === 'pause_turn' && Array.isArray(j.content)) { messages.push({ role: 'assistant', content: j.content }); continue; }
+        break;
       }
-    });
-    const seen = {}; const fontesU = fontes.filter(function (f) { if (seen[f.url]) return false; seen[f.url] = 1; return true; }).slice(0, 12);
-    const contexto = (Array.isArray(j.content) ? j.content.map(function (b) { return (b && typeof b.text === 'string') ? b.text : ''; }).join('\n') : '').trim();
+      if (!j) { fim({ ok: false, erro: 'A pesquisa na web demorou demais. Tente de novo.' }); return; }
 
-    res.status(200).json({ ok: true, contexto: contexto, fontes: fontesU });
+      const fontes = [];
+      (Array.isArray(j.content) ? j.content : []).forEach(function (b) {
+        if (b && b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+          b.content.forEach(function (rs) { if (rs && rs.url) fontes.push({ url: rs.url, title: rs.title || rs.url }); });
+        }
+      });
+      const seen = {}; const fontesU = fontes.filter(function (f) { if (seen[f.url]) return false; seen[f.url] = 1; return true; }).slice(0, 12);
+      const contexto = (Array.isArray(j.content) ? j.content.map(function (b) { return (b && typeof b.text === 'string') ? b.text : ''; }).join('\n') : '').trim();
+
+      fim({ ok: true, contexto: contexto, fontes: fontesU });
+    } catch (e) {
+      fim({ ok: false, erro: 'Falha interna na pesquisa.', detalhe: String(e).slice(0, 300) });
+    }
   } catch (e) {
+    if (res.headersSent) { try { res.end(); } catch (_) {} return; }
     res.status(500).json({ erro: 'Falha interna na pesquisa.', detalhe: String(e).slice(0, 300) });
   }
 }
