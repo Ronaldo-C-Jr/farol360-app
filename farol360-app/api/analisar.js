@@ -10,12 +10,20 @@ const MODELOS = {
 const PRECO_CENT = { haiku: 50, sonnet: 100, opus: 150 };
 const SB_URL = process.env.SUPABASE_URL || 'https://xjifquevscvkdhnjxqkh.supabase.co';
 
+// fetch com timeout — evita que uma chamada ao Supabase fique pendurada (achado 7.4).
+async function fetchT(url, opts, ms) {
+  const ac = new AbortController();
+  const to = setTimeout(function () { ac.abort(); }, ms || 10000);
+  try { return await fetch(url, Object.assign({}, opts || {}, { signal: ac.signal })); }
+  finally { clearTimeout(to); }
+}
+
 // Valida o token do usuário e devolve o id, ou null.
 async function sbUserId(token) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   if (!svc || !token) return null;
   try {
-    const r = await fetch(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
+    const r = await fetchT(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
     if (!r.ok) return null;
     const j = await r.json();
     return (j && j.id) ? j.id : null;
@@ -25,7 +33,7 @@ async function sbUserId(token) {
 async function sbPerfil(uid) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   try {
-    const r = await fetch(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    const r = await fetchT(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
     if (!r.ok) return null;
     const j = await r.json();
     return (Array.isArray(j) && j[0]) ? j[0] : null;
@@ -36,7 +44,7 @@ async function sbEntregaPorIdem(uid, idem) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   if (!svc || !uid || !idem) return null;
   try {
-    const r = await fetch(SB_URL + '/rest/v1/entregas?select=id,conteudo,fontes&user_id=eq.' + encodeURIComponent(uid) + '&idem_key=eq.' + encodeURIComponent(idem) + '&limit=1', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    const r = await fetchT(SB_URL + '/rest/v1/entregas?select=id,conteudo,fontes&user_id=eq.' + encodeURIComponent(uid) + '&idem_key=eq.' + encodeURIComponent(idem) + '&limit=1', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
     if (!r.ok) return null;
     const j = await r.json();
     return (Array.isArray(j) && j[0]) ? j[0] : null;
@@ -47,7 +55,7 @@ async function sbEntregaPorIdem(uid, idem) {
 async function sbDebitarSalvar(uid, tipo, modelo, titulo, preco, idem, conteudo, fontes) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   try {
-    const r = await fetch(SB_URL + '/rest/v1/rpc/debitar_e_entregar', {
+    const r = await fetchT(SB_URL + '/rest/v1/rpc/debitar_e_entregar', {
       method: 'POST',
       headers: { apikey: svc, Authorization: 'Bearer ' + svc, 'content-type': 'application/json' },
       body: JSON.stringify({ p_user: uid, p_tipo: tipo, p_modelo: modelo, p_titulo: titulo, p_preco: preco, p_idem: idem, p_conteudo: conteudo, p_fontes: fontes || [] }),
@@ -86,7 +94,10 @@ REGRAS:
 10. Se o cliente forneceu detalhes ou pedidos específicos (comparações, gráficos, recortes), incorpore-os às seções e tabelas correspondentes do formato — sem inventar dados e sem criar campos fora do schema.
 11. Precisão só com base real: só afirme um VALOR NUMÉRICO quando houver fonte que o sustente (oficial, derivada ou dado aportado pelo cliente). Sem base, prefira leitura qualitativa e mantenha o número em faixa conservadora/central, sempre com "est":true. Nunca fabrique precisão.
 12. Índices de imagem (IPE, VIS, INT, EMO) e projeções são estimativas indiretas: sem dado quantitativo do cliente, trate-os como faixa (evite extremos), marque "est":true e deixe claro na leitura que são estimativas, não medições.
-13. Declare em "limitacoes" todo dado importante que faltou ou não foi encontrado. Só omita (lista vazia) seção irrelevante para o caso — nunca uma ausência relevante.`;
+13. Declare em "limitacoes" todo dado importante que faltou ou não foi encontrado. Só omita (lista vazia) seção irrelevante para o caso — nunca uma ausência relevante.
+14. IDENTIDADE DO ALVO (crítico): nunca atribua ao alvo (empresa/pessoa) um fato, controvérsia, processo ou notícia que a fonte não identifique inequivocamente como sendo dele — mesmo nome E mesma cidade/UF/CNPJ. Havendo homônimo, ambiguidade, ou marca de "possível homônimo/não confirmado" nos dados pesquisados, OMITA o item por completo: não o inclua nem como risco, nem hedgeado, nem "a confirmar". Na dúvida sobre identidade, fora.
+15. ALVO vs CONTEXTO: dado de cidade/setor é CONTEXTO, não é a análise do alvo. Nunca apresente indicador macro ou setorial como se descrevesse a empresa/pessoa. O One Pager e as conclusões falam do ALVO; o contexto entra sempre rotulado como setor/cidade. Não compense a falta de dados do alvo enchendo o relatório com contexto.
+16. DADOS ESCASSOS: quando a informação pública sobre o alvo for escassa, diga isso com destaque logo no início da conclusão do One Pager, reduza a precisão aparente (menos números, mais leitura qualitativa, faixas largas), e liste em "limitacoes" os dados ESPECÍFICOS que o cliente deve enviar para virar um perfil real (ex.: CNPJ, faixa de faturamento, nº de funcionários, obras/portfólio, certidões). Um relatório honesto e enxuto vale mais que um relatório cheio de contexto fingindo conhecer o alvo.`;
 
 function promptEmpresa(d, contexto) {
   const topicos = Array.isArray(d.topicos) ? d.topicos.join(', ') : (d.topicos || 'nenhum');
@@ -110,7 +121,9 @@ REGRAS ESPECÍFICAS:
 - KPIs sempre em faixa (P5–P95).
 - Explicar cada sigla no primeiro uso.
 - Todo indicador gera recomendação prática.
-- Incluir sempre o One Pager executivo.`;
+- Incluir sempre o One Pager executivo.
+- Distinga EMPRESA de CONTEXTO: descreva a empresa só com o que for verificável sobre ELA; setor e cidade entram como pano de fundo rotulado, nunca como se fossem a empresa. Não atribua à empresa nenhum fato de possível homônimo.
+- Se a pegada pública da empresa for escassa, a conclusão do One Pager começa deixando isso claro; o relatório pesa mais no diagnóstico, no roadmap e no que falta enviar, e evita métricas que aparentem um conhecimento da empresa que os dados não sustentam.`;
 }
 
 const SCHEMA_EMPRESA = `FORMATO JSON OBRIGATÓRIO (preencha todos os campos; "est":true onde o valor for estimativa):

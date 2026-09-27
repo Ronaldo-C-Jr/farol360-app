@@ -5,11 +5,19 @@ const MODELOS = { haiku: 'claude-haiku-4-5', sonnet: 'claude-sonnet-5', opus: 'c
 const PRECO_CENT = { haiku: 50, sonnet: 100, opus: 150 };
 const SB_URL = process.env.SUPABASE_URL || 'https://xjifquevscvkdhnjxqkh.supabase.co';
 
+// fetch com timeout — evita que uma chamada ao Supabase fique pendurada (achado 7.4).
+async function fetchT(url, opts, ms) {
+  const ac = new AbortController();
+  const to = setTimeout(function () { ac.abort(); }, ms || 10000);
+  try { return await fetch(url, Object.assign({}, opts || {}, { signal: ac.signal })); }
+  finally { clearTimeout(to); }
+}
+
 async function sbUserId(token) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   if (!svc || !token) return null;
   try {
-    const r = await fetch(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
+    const r = await fetchT(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
     if (!r.ok) return null;
     const j = await r.json();
     return (j && j.id) ? j.id : null;
@@ -19,7 +27,7 @@ async function sbUserId(token) {
 async function sbPerfil(uid) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   try {
-    const r = await fetch(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    const r = await fetchT(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
     if (!r.ok) return null;
     const j = await r.json();
     return (Array.isArray(j) && j[0]) ? j[0] : null;
@@ -30,7 +38,7 @@ async function sbEntregaPorIdem(uid, idem) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   if (!svc || !uid || !idem) return null;
   try {
-    const r = await fetch(SB_URL + '/rest/v1/entregas?select=id&user_id=eq.' + encodeURIComponent(uid) + '&idem_key=eq.' + encodeURIComponent(idem) + '&limit=1', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    const r = await fetchT(SB_URL + '/rest/v1/entregas?select=id&user_id=eq.' + encodeURIComponent(uid) + '&idem_key=eq.' + encodeURIComponent(idem) + '&limit=1', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
     if (!r.ok) return null;
     const j = await r.json();
     return (Array.isArray(j) && j[0]) ? j[0] : null;
@@ -91,11 +99,14 @@ export default async function handler(req, res) {
     } else {
       prompt = 'Pesquise na web dados REAIS e atuais para embasar uma análise da empresa abaixo. Faça buscas objetivas e reúna fatos verificáveis.\n\n' +
         'Empresa: ' + (d.empresa || '') + '\nSetor: ' + (d.setor || '') + '\nCidade: ' + (d.cidade || '') + fontesCliente + extrasCliente + '\n\n' +
-        'Procure: porte/presença da própria empresa; concorrentes nomeados na região; indicadores do setor (IBGE, associações setoriais, notícias econômicas); contexto econômico regional relevante.\n\n' +
-        'Escreva um resumo objetivo dos ACHADOS em bullets curtos; cada achado com o dado e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 20 linhas. NÃO escreva o relatório — só os achados factuais.';
+        'CONFIRMAÇÃO DE IDENTIDADE (crítico): só atribua um achado a ESTA empresa se a fonte a identificar sem ambiguidade — mesmo nome E mesma cidade/UF (use CNPJ/endereço quando houver). Se um resultado puder ser de empresa HOMÔNIMA em outra cidade/UF, ou se houver qualquer dúvida, NÃO o atribua a esta empresa: marque "[possível homônimo — NÃO confirmado]" e mantenha-o fora dos achados da empresa. Nunca ligue a esta empresa uma controvérsia, processo ou notícia que não esteja confirmada como sendo dela.\n\n' +
+        'Procure sobre a EMPRESA especificamente: CNPJ/razão social, porte, tempo de atuação, obras e portfólio, sócios, presença digital (site, redes), reputação (Reclame Aqui) e certificações.\n\n' +
+        'Separe os achados em dois blocos: (A) EMPRESA — o que foi CONFIRMADO sobre ela; (B) CONTEXTO — setor da construção civil e a cidade/região (IBGE, associações, notícias econômicas). Não apresente contexto como se fosse dado da empresa.\n\n' +
+        'Ao final, avalie a PEGADA PÚBLICA da empresa em uma linha: escassa | moderada | ampla — e diga o que NÃO foi encontrado sobre a empresa especificamente.\n\n' +
+        'Escreva um resumo objetivo em bullets curtos; cada achado com o dado e a fonte. Se algo não for encontrado, escreva "não encontrado". Máximo 24 linhas. NÃO escreva o relatório — só os achados factuais.';
     }
 
-    const maxUses = body.promptId === 'governo' ? 6 : 4;
+    const maxUses = (body.promptId === 'governo' || body.promptId === 'empresa') ? 6 : 4;
     const deadline = Date.now() + 150000;
     const messages = [{ role: 'user', content: prompt }];
 
@@ -117,6 +128,17 @@ export default async function handler(req, res) {
     }
 
     try {
+      // Acumula fontes e texto de TODAS as etapas da busca, não só da última (achado 9).
+      const fontesAll = [];
+      const textos = [];
+      function coleta(content) {
+        (Array.isArray(content) ? content : []).forEach(function (b) {
+          if (b && b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+            b.content.forEach(function (rs) { if (rs && rs.url) fontesAll.push({ url: rs.url, title: rs.title || rs.url }); });
+          }
+          if (b && typeof b.text === 'string') textos.push(b.text);
+        });
+      }
       let j = null;
       for (let it = 0; it < 4; it++) {
         const rem = deadline - Date.now();
@@ -134,19 +156,14 @@ export default async function handler(req, res) {
         clearTimeout(to);
         if (!r.ok) { const t = await r.text(); console.error('WS HTTP', r.status, t); fim({ ok: false, erro: 'Busca recusada (HTTP ' + r.status + '): ' + t.slice(0, 300) }); return; }
         j = await r.json();
+        coleta(j.content);
         if (j.stop_reason === 'pause_turn' && Array.isArray(j.content)) { messages.push({ role: 'assistant', content: j.content }); continue; }
         break;
       }
       if (!j) { fim({ ok: false, erro: 'A pesquisa na web demorou demais. Tente de novo.' }); return; }
 
-      const fontes = [];
-      (Array.isArray(j.content) ? j.content : []).forEach(function (b) {
-        if (b && b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
-          b.content.forEach(function (rs) { if (rs && rs.url) fontes.push({ url: rs.url, title: rs.title || rs.url }); });
-        }
-      });
-      const seen = {}; const fontesU = fontes.filter(function (f) { if (seen[f.url]) return false; seen[f.url] = 1; return true; }).slice(0, 12);
-      const contexto = (Array.isArray(j.content) ? j.content.map(function (b) { return (b && typeof b.text === 'string') ? b.text : ''; }).join('\n') : '').trim();
+      const seen = {}; const fontesU = fontesAll.filter(function (f) { if (seen[f.url]) return false; seen[f.url] = 1; return true; }).slice(0, 12);
+      const contexto = textos.join('\n').trim();
 
       fim({ ok: true, contexto: contexto, fontes: fontesU });
     } catch (e) {
