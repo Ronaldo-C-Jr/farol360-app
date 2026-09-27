@@ -2,6 +2,7 @@
 // Busca dados reais e devolve os ACHADOS (texto) + as fontes. Rápido, cabe em <60s.
 
 const MODELOS = { haiku: 'claude-haiku-4-5', sonnet: 'claude-sonnet-5', opus: 'claude-opus-4-8' };
+const PRECO_CENT = { haiku: 50, sonnet: 100, opus: 150 };
 const SB_URL = process.env.SUPABASE_URL || 'https://xjifquevscvkdhnjxqkh.supabase.co';
 
 async function sbUserId(token) {
@@ -12,6 +13,27 @@ async function sbUserId(token) {
     if (!r.ok) return null;
     const j = await r.json();
     return (j && j.id) ? j.id : null;
+  } catch (e) { return null; }
+}
+// Perfil (service_role, ignora RLS) — para autorizar ANTES de consumir busca paga.
+async function sbPerfil(uid) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/perfis?select=ativo,analises,saldo_centavos&id=eq.' + uid, { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (Array.isArray(j) && j[0]) ? j[0] : null;
+  } catch (e) { return null; }
+}
+// Se a análise já foi gerada e cobrada (mesma chave), não precisa pesquisar de novo.
+async function sbEntregaPorIdem(uid, idem) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  if (!svc || !uid || !idem) return null;
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/entregas?select=id&user_id=eq.' + encodeURIComponent(uid) + '&idem_key=eq.' + encodeURIComponent(idem) + '&limit=1', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (Array.isArray(j) && j[0]) ? j[0] : null;
   } catch (e) { return null; }
 }
 
@@ -28,6 +50,25 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const d = body.dados || {};
+
+    // --- Autorização e orçamento ANTES de consumir busca paga (achado 10.2) ---
+    const promptIdReq = body.promptId === 'governo' ? 'governo' : (body.promptId === 'perfil' ? 'perfil' : 'empresa');
+    const modeloReq = (body.modelo === 'haiku' || body.modelo === 'opus') ? body.modelo : 'sonnet';
+    const preco = PRECO_CENT[modeloReq] || PRECO_CENT.sonnet;
+    const perfil = await sbPerfil(uid);
+    if (!perfil) { res.status(403).json({ erro: 'Perfil não encontrado. Contate o administrador.' }); return; }
+    if (perfil.ativo === false) { res.status(403).json({ erro: 'Conta inativa. Contate o administrador.' }); return; }
+    if (!Array.isArray(perfil.analises) || perfil.analises.indexOf(promptIdReq) < 0) { res.status(403).json({ erro: 'Esta análise não está liberada no seu acesso.' }); return; }
+
+    // Retry idempotente: se a análise já existe, não gasta busca — o cliente vai recuperá-la no /analisar.
+    const idem = String(body.idem || '').slice(0, 80);
+    if (idem) {
+      const ex = await sbEntregaPorIdem(uid, idem);
+      if (ex) { res.status(200).json({ ok: true, contexto: '', fontes: [], jaExiste: true }); return; }
+    }
+
+    if ((Number(perfil.saldo_centavos) || 0) < preco) { res.status(402).json({ erro: 'Saldo insuficiente para esta consulta. Solicite mais créditos ao administrador.' }); return; }
+
     // A BUSCA sempre usa um modelo rápido (nunca Opus): ela só reúne fatos.
     // O modelo pesado (Opus) fica reservado para a REDAÇÃO do relatório (/api/analisar).
     // Opus na busca deixava a etapa lenta demais e a conexão do celular caía ("Load failed").
