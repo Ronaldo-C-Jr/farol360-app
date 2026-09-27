@@ -1,7 +1,13 @@
 {
   "name": "farol360-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "FAROL360 — aplicação de análises por IA (fatia vertical: Empresa)",
-  "type": "module"
+  "description": "FAROL360 — aplicação de análises por IA (Empresa, Governo, Figura Pública)",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "node --check api/pesquisar.js && node --check api/analisar.js && node --check api/admin.js && echo OK"
+  }
 }

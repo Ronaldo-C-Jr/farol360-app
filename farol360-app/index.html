@@ -287,6 +287,8 @@ const MODELOS={haiku:{nome:'Leve',desc:'Rápida e essencial',preco:0.50},sonnet:
 function precoBR(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');}
 const SB_URL='https://xjifquevscvkdhnjxqkh.supabase.co';
 const SB_ANON='sb_publishable_5o74K-oYu8VKfiLHfy_dLQ_Y80ywKlT';
+// Versão do app — mude a cada release. Deve casar com package.json e com o CACHE do sw.js.
+const APP_VER='1.0.0';
 const PRECO_CENT={haiku:50,sonnet:100,opus:150};
 function saldoBR(c){return precoBR((Number(c)||0)/100);}
 function liberadas(){return (state.cliente&&state.cliente.analises)||[];}
@@ -304,25 +306,50 @@ async function sbLogin(email,senha){
   const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SB_ANON,'content-type':'application/json'},body:JSON.stringify({email:email,password:senha})});
   const j=await r.json();
   if(!r.ok||!j.access_token)throw new Error((j&&(j.error_description||j.msg||j.error))||'E-mail ou senha inválidos.');
-  return {token:j.access_token,user:j.user};
+  return {token:j.access_token,refresh:j.refresh_token,user:j.user};
 }
 async function sbPerfil(uid,token){
   const r=await fetch(SB_URL+'/rest/v1/perfis?select=*&id=eq.'+uid,{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+token}});
   const j=await r.json();return (Array.isArray(j)&&j[0])?j[0]:{};
 }
 async function sbUser(token){try{const r=await fetch(SB_URL+'/auth/v1/user',{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+token}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
-function setCliente(uid,email,token,perfil){
-  state.cliente={user_id:uid,email:email,token:token,nome:perfil.nome||email,saldo:perfil.saldo_centavos||0,analises:perfil.analises||[],ativo:perfil.ativo!==false,papel:perfil.papel||'cliente'};
-  try{localStorage.setItem('f360_token',token);}catch(e){}
+function setCliente(uid,email,token,perfil,refresh){
+  state.cliente={user_id:uid,email:email,token:token,refresh:refresh||null,nome:perfil.nome||email,saldo:perfil.saldo_centavos||0,analises:perfil.analises||[],ativo:perfil.ativo!==false,papel:perfil.papel||'cliente'};
+  try{localStorage.setItem('f360_token',token);if(refresh)localStorage.setItem('f360_refresh',refresh);}catch(e){}
 }
-function sair(){try{localStorage.removeItem('f360_token');}catch(e){}state.cliente=null;state.dados={};state.relatorio=null;go('login');}
+// Renova o token usando o refresh_token (achado 10.4): evita perder o trabalho quando a sessão expira no meio do fluxo.
+async function refreshToken(){
+  var rt=(state.cliente&&state.cliente.refresh);
+  if(!rt){try{rt=localStorage.getItem('f360_refresh');}catch(e){rt=null;}}
+  if(!rt)return false;
+  try{
+    var r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':SB_ANON,'content-type':'application/json'},body:JSON.stringify({refresh_token:rt})});
+    var j=await r.json();
+    if(!r.ok||!j.access_token)return false;
+    if(state.cliente){state.cliente.token=j.access_token;state.cliente.refresh=j.refresh_token||rt;}
+    try{localStorage.setItem('f360_token',j.access_token);if(j.refresh_token)localStorage.setItem('f360_refresh',j.refresh_token);}catch(e){}
+    return true;
+  }catch(e){return false;}
+}
+// POST autenticado com renovação automática: em 401, tenta renovar uma vez e refaz a chamada.
+async function authFetch(url,bodyObj){
+  var opt={method:'POST',headers:{'content-type':'application/json','Authorization':'Bearer '+((state.cliente&&state.cliente.token)||'')},body:JSON.stringify(bodyObj||{})};
+  var r=await fetch(url,opt);
+  if(r.status===401){var ok=await refreshToken();if(ok){opt.headers.Authorization='Bearer '+state.cliente.token;r=await fetch(url,opt);}}
+  return r;
+}
+function sair(){try{localStorage.removeItem('f360_token');localStorage.removeItem('f360_refresh');}catch(e){}state.cliente=null;state.dados={};state.relatorio=null;state.idem=null;go('login');}
 async function restaurarSessao(){
-  var t=null;try{t=localStorage.getItem('f360_token');}catch(e){}
+  var t=null,rt=null;try{t=localStorage.getItem('f360_token');rt=localStorage.getItem('f360_refresh');}catch(e){}
   if(!t){go('login');return;}
   app.innerHTML='<div class="login"><div class="login-card" style="text-align:center;color:var(--ink-soft)">'+farol(40)+'<div style="margin-top:12px">Carregando…</div></div></div>';
   var u=await sbUser(t);
+  if((!u||!u.id)&&rt){ // token expirado: tenta renovar antes de exigir novo login
+    state.cliente={refresh:rt};
+    if(await refreshToken()){t=state.cliente.token;u=await sbUser(t);}
+  }
   if(!u||!u.id){sair();return;}
-  var perfil=await sbPerfil(u.id,t);setCliente(u.id,u.email,t,perfil);go('catalog');
+  var perfil=await sbPerfil(u.id,t);setCliente(u.id,u.email,t,perfil,(state.cliente&&state.cliente.refresh)||rt);go('catalog');
 }
 const IC={perfil:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>',governo:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/></svg>',empresa:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21V7l7-3v17M17 21V10l-7-3M3 21h18"/></svg>',back:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',info:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v0"/></svg>'};
 var _fk=0;
@@ -387,7 +414,7 @@ function shell(b){const c=state.cliente;return ''+
  '<button class="iconbtn" data-act="historico" title="Meus relatórios"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></button>'+
  '<button class="iconbtn" data-act="theme" title="Tema"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>'+
  '<button class="iconbtn" data-act="logout" title="Sair"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button></div>'+
- '<div class="main"><div class="wrap">'+b+'</div></div>';}
+ '<div class="main"><div class="wrap">'+b+'<div style="text-align:center;color:var(--ink-faint);font-size:11px;letter-spacing:.08em;padding:20px 0 8px">FAROL360 · v'+APP_VER+'</div></div></div>';}
 function body(){if(state.view==='catalog')return catalog();if(state.view==='form')return form();if(state.view==='loading')return loading();if(state.view==='report')return report();if(state.view==='admin')return admin();if(state.view==='historico')return historicoView();return '';}
 function tipoLabel(t){return t==='governo'?'Avaliação de Governo':(t==='perfil'?'Análise de Figura Pública':'Análise de Empresa');}
 function dataBR(s){try{var d=new Date(s);if(isNaN(d))return '';return d.toLocaleDateString('pt-BR')+' · '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
@@ -410,6 +437,7 @@ function renderLogin(){
    '<button class="btn block" id="btnEntrar" type="submit">Entrar</button>'+
    '<div class="errbox" id="loginErr" hidden></div>'+
    '<div class="login-note">Acesso restrito a clientes Gênesis / Farol360. As credenciais são cadastradas pelo administrador.</div>'+
+   '<div style="text-align:center;color:var(--ink-faint);font-size:11px;letter-spacing:.08em;margin-top:10px">v'+APP_VER+'</div>'+
    '<button class="btn ghost sm" id="btnInstalar" type="button" hidden style="width:100%;margin-top:14px">'+farol(15)+' Instalar o app</button>'+
    '<div class="hint" id="iosHint" hidden style="text-align:center;margin-top:9px">No iPhone, toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.</div>'+
    '<button class="ad-cta" id="btnAutodiag" type="button"><span class="ad-cta-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M4 15.5a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15.5l4.2-3.4" stroke="var(--brand)" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.6" fill="var(--brand)"/></svg></span><span class="ad-cta-tx"><span class="ad-cta-t">Veja o quanto você precisa da gente</span><span class="ad-cta-s">Autodiagnóstico de 1 minuto — onde o FAROL360 ilumina o seu caminho</span></span><span class="ad-cta-arrow">›</span></button>'+
@@ -424,7 +452,7 @@ function renderLogin(){
      const s=await sbLogin(em,pw);
      const perfil=await sbPerfil(s.user.id,s.token);
      if(perfil.ativo===false)throw new Error('Conta inativa. Contate o administrador.');
-     setCliente(s.user.id,s.user.email||em,s.token,perfil);
+     setCliente(s.user.id,s.user.email||em,s.token,perfil,s.refresh);
      go('catalog');
    }catch(err){errEl.textContent=(err&&err.message)||'Não foi possível entrar.';errEl.hidden=false;btn.disabled=false;btn.textContent=txt;}
   });
@@ -534,17 +562,19 @@ function limpo(v){var s=String(v==null?'':v).trim().toLowerCase();return !!s&&s!
 function filtra(arr,keys){return (arr||[]).filter(function(x){return keys.some(function(k){return limpo(x[k]);});});}
 function strs(arr){return (arr||[]).filter(function(x){return limpo(x);});}
 function parseNums(s){var m=String(s==null?'':s).match(/-?\d+(?:[.,]\d+)?/g);return m?m.map(function(x){return parseFloat(x.replace(',','.'));}):[];}
+// Lê faixas como "10-20%", "10–20", "10 a 20" sem transformar o 2º número em negativo (achado 8.2).
+function numRange(s){var t=String(s==null?'':s).replace(/(\d)\s*(?:[-–—]|a|até)\s*(\d)/gi,'$1|$2');var m=t.match(/-?\d+(?:[.,]\d+)?/g);return m?m.map(function(x){return parseFloat(x.replace(',','.'));}):[];}
 function meterBox(label,val){var v=Math.max(0,Math.min(100,Math.round(Number(val)||0)));return '<div class="meterbox"><div class="ml">'+esc(label)+'</div><div class="meter"><div class="mtrack"><div class="mfill" style="width:'+v+'%"></div></div><div class="mval">'+v+'/100</div></div></div>';}
 function metersRow(pairs){var b=pairs.filter(function(p){return p[1]!=null&&p[1]!==''&&p[1]!=='—';}).map(function(p){return meterBox(p[0],p[1]);});return b.length?'<div class="meters">'+b.join('')+'</div>':'';}
-function kpiRange(faixa){var n=parseNums(faixa);if(n.length<2)return '';var a=Math.min(n[0],n[1]),b=Math.max(n[0],n[1]);var max=(b<=0?Math.abs(a)+1:b)*1.25;var lo=Math.max(0,a)/max*100,hi=Math.min(b,max)/max*100;return '<div class="btrack" style="margin-top:8px"><div class="brange" style="left:'+lo+'%;width:'+Math.max(4,(hi-lo))+'%"></div></div>';}
+function kpiRange(faixa){var n=numRange(faixa);if(n.length<2)return '';var a=Math.min(n[0],n[1]),b=Math.max(n[0],n[1]);var max=(b<=0?Math.abs(a)+1:b)*1.25;var lo=Math.max(0,a)/max*100,hi=Math.min(b,max)/max*100;return '<div class="btrack" style="margin-top:8px"><div class="brange" style="left:'+lo+'%;width:'+Math.max(4,(hi-lo))+'%"></div></div>';}
 function barsBlock(items){return '<div class="bars">'+items.map(function(it){var p=Math.max(3,Math.min(100,Number(it.pct)||0));return '<div class="barrow"><div class="blabel" title="'+esc(it.label)+'">'+esc(it.label)+'</div><div class="btrack"><div class="bfill" style="width:'+p+'%'+(it.tone?(';background:'+it.tone):'')+'"></div></div><div class="bval">'+esc(it.val||'')+'</div></div>';}).join('')+'</div>';}
-function govBench(b){return tbl(['Referência','Município','Média','Diferença'],b.map(function(x){var t=String(x.diferenca||'').toLowerCase();var cls=(t.indexOf('-')>=0||t.indexOf('abaixo')>=0)?'crit':((t.indexOf('+')>=0||t.indexOf('acima')>=0)?'good':'mod');return '<tr><td>'+esc(x.referencia||'')+'</td><td class="num-c">'+esc(x.municipio||'')+'</td><td class="num-c">'+esc(x.media||'')+'</td><td><span class="pill '+cls+'">'+esc(x.diferenca||'—')+'</span></td></tr>';}).join(''));}
+function govBench(b){return tbl(['Referência','Município','Média','Diferença'],b.map(function(x){return '<tr><td>'+esc(x.referencia||'')+'</td><td class="num-c">'+esc(x.municipio||'')+'</td><td class="num-c">'+esc(x.media||'')+'</td><td><span class="ev">'+esc(x.diferenca||'—')+'</span></td></tr>';}).join(''));}
 function swotBox(sw){sw=sw||{};return '<div class="swot"><div class="q f"><h5>Forças</h5><ul>'+(sw.forcas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="q w"><h5>Fraquezas</h5><ul>'+(sw.fraquezas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="q o"><h5>Oportunidades</h5><ul>'+(sw.oportunidades||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div><div class="q t"><h5>Ameaças</h5><ul>'+(sw.ameacas||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div></div>';}
 function odsPill(st){var t=String(st||'').toLowerCase();var c='mod';if(t.indexOf('atingid')>=0||t.indexOf('bom')>=0)c='good';else if(t.indexOf('crít')>=0||t.indexOf('crit')>=0)c='crit';return '<span class="pill '+c+'">'+esc(st||'—')+'</span>';}
 function prioPill(p){var t=String(p||'').toLowerCase();var c='mod';if(t.indexOf('máx')>=0||t.indexOf('max')>=0||t.indexOf('alta')>=0)c='crit';else if(t.indexOf('baixa')>=0)c='good';return '<span class="pill '+c+'">'+esc(p||'—')+'</span>';}
 function footFontes(){return (state.fontes&&state.fontes.length)?('<br><span style="opacity:.7">Fontes ('+state.fontes.length+'): '+state.fontes.slice(0,10).map(function(f,i){return '<a href="'+esc(f.url)+'" target="_blank" rel="noopener">['+(i+1)+']</a>';}).join(' ')+'</span>'):'';}
 function docWrap(kicker,titulo,sub,subs,body,nota){
- return '<div class="report-head"><div class="meta"><button class="backlink" data-act="back">'+IC.back+' Nova análise</button></div><div class="report-actions"><button class="btn ghost sm" data-act="back">Refazer</button><button class="btn sm" data-act="pdf">Baixar PDF</button></div></div>'+
+ return '<div class="report-head"><div class="meta"><button class="backlink" data-act="back">'+IC.back+' Nova análise</button></div><div class="report-actions"><button class="btn ghost sm" data-act="back">Refazer</button><button class="btn sm" data-act="pdf">Salvar em PDF</button></div></div>'+
   '<div class="doc"><div class="doc-band"></div><div class="doc-inner" id="rp"><div class="rep-title"><div class="k">'+esc(kicker)+'</div><h1>'+esc(titulo)+'</h1>'+(sub?'<div class="who2">'+esc(sub)+'</div>':'')+
   '<div class="rep-sub">'+subs.map(function(x){return '<div><div class="l">'+esc(x[0])+'</div><div class="d">'+esc(x[1])+'</div></div>';}).join('')+'</div></div>'+
   baseBox()+
@@ -559,8 +589,8 @@ function relEmpresa(r,d){
   s.push(sec('01','One Pager Executivo','<div class="onepager"><h3>Síntese para decisão</h3><div class="op-grid">'+tiles.join('')+'</div>'+(op.conclusao_consultiva?'<div class="op-concl">'+esc(op.conclusao_consultiva)+'</div>':'')+'</div>'+metersRow([['Índice de competitividade',(op.indice_competitividade||{}).valor]])));}
  var _pe=filtra(r.pestel,['fator','leitura']);if(_pe.length)s.push(sec('02','PESTEL — ambiente externo',tbl(['Fator','Leitura','Implicação','Evidência'],_pe.map(function(x){return '<tr><td><b>'+esc(x.fator)+'</b></td><td>'+esc(x.leitura)+'</td><td>'+esc(x.implicacao)+'</td><td><span class="ev">'+esc(x.evidencia||'proxy')+'</span></td></tr>';}).join(''))));
  if(r.competitivo){var c=r.competitivo;s.push(sec('03','Análise competitiva — Porter, VRIO, SWOT',(c.porter?'<p class="serif"><b>Porter:</b> '+esc(c.porter)+'</p>':'')+(c.vrio?'<p class="serif"><b>VRIO:</b> '+esc(c.vrio)+'</p>':'')+swotBox(c.swot)));}
- var _kp=filtra(r.kpis,['nome']);if(_kp.length)s.push(sec('04','KPIs em faixa (P5–P95)','<div class="kpi-row">'+_kp.map(function(k){return '<div class="kpi"><div class="kl">'+esc(k.nome)+star(k.est)+'</div><div class="kv">'+esc(k.faixa_p5_p95||'')+'</div>'+kpiRange(k.faixa_p5_p95)+'<div class="kd">'+esc(k.recomendacao||k.interpretacao||'')+'</div></div>';}).join('')+'</div>'));
- var _cs=filtra(r.clientes_segmentos,['segmento']);if(_cs.length){var segItems=_cs.map(function(x){var n=parseNums(x.participacao);return {label:x.segmento,pct:n.length?Math.max.apply(null,n):0,val:x.participacao};});
+ var _kp=filtra(r.kpis,['nome']);if(_kp.length)s.push(sec('04','KPIs em faixa (estimada)','<div class="kpi-row">'+_kp.map(function(k){return '<div class="kpi"><div class="kl">'+esc(k.nome)+star(k.est)+'</div><div class="kv">'+esc(k.faixa_p5_p95||'')+'</div>'+kpiRange(k.faixa_p5_p95)+'<div class="kd">'+esc(k.recomendacao||k.interpretacao||'')+'</div></div>';}).join('')+'</div>'));
+ var _cs=filtra(r.clientes_segmentos,['segmento']);if(_cs.length){var segItems=_cs.map(function(x){var n=numRange(x.participacao);return {label:x.segmento,pct:n.length?Math.max.apply(null,n):0,val:x.participacao};});
   s.push(sec('05','Clientes e segmentos',barsBlock(segItems)+tbl(['Segmento','Participação','Leitura'],_cs.map(function(x){return '<tr><td><b>'+esc(x.segmento)+star(x.est)+'</b></td><td>'+esc(x.participacao)+'</td><td>'+esc(x.leitura)+'</td></tr>';}).join(''))));}
  var _pj=filtra(r.projecoes_12m,['cenario']);if(_pj.length)s.push(sec('06','Projeções 12 meses',tbl(['Cenário','Receita relativa','Margem','Leitura'],_pj.map(function(x){return '<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td class="num-c">'+esc(x.receita_relativa)+'</td><td class="num-c">'+esc(x.margem)+'</td><td>'+esc(x.leitura)+'</td></tr>';}).join(''))));
  var _rm=filtra(r.roadmap,['acao','horizonte']);if(_rm.length)s.push(sec('07','Diagnóstico & Roadmap',tbl(['Horizonte','Ação prioritária'],_rm.map(function(x){return '<tr><td><b>'+esc(x.horizonte)+'</b></td><td>'+esc(x.acao)+'</td></tr>';}).join(''))));
@@ -583,14 +613,15 @@ function relGoverno(r,d){
  if(barr.length)s.push(sec(pad(),'Barreiras invisíveis e subnotificação','<ul class="plainul">'+barr.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>'));
  if(proj.length)s.push(sec(pad(),'Painel de projeções',tbl(['Ano','Indicador','Sem intervenção','Com intervenção'],proj.map(function(x){return '<tr><td class="num-c">'+esc(x.ano||'')+'</td><td>'+esc(x.indicador||'')+'</td><td>'+esc(x.sem_intervencao||'')+star(x.est)+'</td><td>'+esc(x.com_intervencao||'')+'</td></tr>';}).join(''))));
  if(temSwot)s.push(sec(pad(),'Matriz SWOT',swotBox(sw)));
- if(gut.length)s.push(sec(pad(),'Matriz GUT — priorização',tbl(['Problema','G','U','T','GxUxT','Prioridade'],gut.map(function(x){return '<tr><td>'+esc(x.problema||'')+'</td><td class="num-c">'+esc(x.g)+'</td><td class="num-c">'+esc(x.u)+'</td><td class="num-c">'+esc(x.t)+'</td><td class="num-c">'+esc(x.gut)+'</td><td>'+prioPill(x.prioridade)+'</td></tr>';}).join(''))));
+ if(gut.length)s.push(sec(pad(),'Matriz GUT — priorização',tbl(['Problema','G','U','T','GxUxT','Prioridade'],gut.map(function(x){var g=Number(x.g),u=Number(x.u),t=Number(x.t);var prod=(isFinite(g)&&isFinite(u)&&isFinite(t))?(g*u*t):esc(x.gut);return '<tr><td>'+esc(x.problema||'')+'</td><td class="num-c">'+esc(x.g)+'</td><td class="num-c">'+esc(x.u)+'</td><td class="num-c">'+esc(x.t)+'</td><td class="num-c">'+prod+'</td><td>'+prioPill(x.prioridade)+'</td></tr>';}).join(''))));
  if(pdca.length)s.push(sec(pad(),'Ciclo PDCA',tbl(['Etapa','Objetivo','Indicador','Prazo'],pdca.map(function(x){return '<tr><td><b>'+esc(x.etapa||'')+'</b></td><td>'+esc(x.objetivo||'')+'</td><td>'+esc(x.indicador||'')+'</td><td>'+esc(x.prazo||'')+'</td></tr>';}).join(''))));
  if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
  var lim=strs(conf.limitacoes);
  var nota='<b>Metodologia FAROL360:</b> a coluna Evidência classifica cada dado (oficial → derivado-estadual → analogia-pares → tendencial → proxy); itens com <span class="star">*</span> são estimativa; sentimento é proxy, não intenção de voto. Sem valores monetários. '+(lim.length?'<br><b>Limitações:</b> '+lim.map(esc).join('; ')+'.':'')+'<br><b>Aviso:</b> baseado em fontes públicas; não substitui auditoria.'+footFontes();
  return docWrap('Avaliação Individual de Governo',cab.municipio||d.municipio||'Governo',(cab.instancia||d.instancia||'')+' · '+(cab.area||d.area||''),[['Período',cab.periodo_hist||d.periodo||''],['Projeção',cab.periodo_proj||d.projecao||''],['Consulta',MODELOS[state.modelo].nome]],s.join(''),nota);
 }
-function penetPct(t){var s=String(t||'').toLowerCase();if(s.indexOf('alta')>=0)return 88;if(s.indexOf('média')>=0||s.indexOf('media')>=0)return 55;if(s.indexOf('baixa')>=0||s.indexOf('fraca')>=0)return 25;var n=parseNums(t);return n.length?Math.max(0,Math.min(100,n[0])):50;}
+// Só devolve número quando há número real; qualitativo não vira comprimento de barra (achado 8.1).
+function penetInfo(t){var s=String(t||'').toLowerCase();var n=numRange(t);if(n.length)return {num:Math.max(0,Math.min(100,n[0]))};if(s.indexOf('alta')>=0)return {cat:'Alta'};if(s.indexOf('média')>=0||s.indexOf('media')>=0)return {cat:'Média'};if(s.indexOf('baixa')>=0||s.indexOf('fraca')>=0)return {cat:'Baixa'};return {};}
 function relPerfil(r,d){
  var cab=r.cabecalho||{},conf=r.confiabilidade||{},ind=r.indicadores||{},perf=r.perfil||{},s=[],n=1;function pad(){return ('0'+(n++)).slice(-2);}
  s.push(sec(pad(),'Indicadores de imagem',metersRow([['VIS · Visibilidade',ind.vis],['INT · Interesse',ind.int],['EMO · Sentimento',ind.emo],['IPE · Popularidade',ind.ipe]])+'<div class="callout">'+IC.info+'<div>VIS/INT/EMO/IPE são <b>índices de imagem indireta</b>, sempre estimados <span class="star">*</span>. Não são intenção de voto nem aprovação estatística.</div></div>'));
@@ -599,7 +630,8 @@ function relPerfil(r,d){
  var lt=filtra(r.linha_tempo,['marco','evento']);if(lt.length)s.push(sec(pad(),'Linha do tempo de eventos',tbl(['Marco','Evento','Emoção dominante'],lt.map(function(x){return '<tr><td class="num-c">'+esc(x.marco||'')+'</td><td>'+esc(x.evento||'')+'</td><td>'+esc(x.emocao||'')+'</td></tr>';}).join(''))));
  var sw=r.swot||{},temSwot=(strs(sw.forcas).length+strs(sw.fraquezas).length+strs(sw.oportunidades).length+strs(sw.ameacas).length)>0;
  if(temSwot)s.push(sec(pad(),'SWOT de imagem',swotBox(sw)));
- var pub=filtra(r.publicos,['segmento']);if(pub.length)s.push(sec(pad(),'Públicos e penetração',barsBlock(pub.map(function(x){var p=penetPct(x.penetracao);return {label:x.segmento,pct:p,val:x.penetracao||(p+'/100'),tone:(p>=70?'var(--good)':(p<40?'var(--crit)':'var(--mod)'))};}))+tbl(['Segmento','Penetração','Tendência'],pub.map(function(x){return '<tr><td><b>'+esc(x.segmento)+star(x.est)+'</b></td><td>'+esc(x.penetracao||'')+'</td><td>'+esc(x.tendencia||'')+'</td></tr>';}).join(''))));
+ var pub=filtra(r.publicos,['segmento']);if(pub.length){var barsPub=pub.map(function(x){return {seg:x.segmento,info:penetInfo(x.penetracao),val:x.penetracao};}).filter(function(o){return o.info.num!=null;}).map(function(o){var p=o.info.num;return {label:o.seg,pct:p,val:o.val||(p+'/100'),tone:(p>=70?'var(--good)':(p<40?'var(--crit)':'var(--mod)'))};});
+  s.push(sec(pad(),'Públicos e penetração',(barsPub.length?barsBlock(barsPub):'')+tbl(['Segmento','Penetração','Tendência'],pub.map(function(x){return '<tr><td><b>'+esc(x.segmento)+star(x.est)+'</b></td><td>'+esc(x.penetracao||'')+'</td><td>'+esc(x.tendencia||'')+'</td></tr>';}).join(''))));}
  var pj=filtra(r.projecoes,['cenario','descricao']);if(pj.length)s.push(sec(pad(),'Projeções estratégicas',tbl(['Cenário','Leitura'],pj.map(function(x){return '<tr><td><b>'+esc(x.cenario)+star(x.est)+'</b></td><td>'+esc(x.descricao)+'</td></tr>';}).join(''))));
  var al=filtra(r.aliancas,['figura']);if(al.length)s.push(sec(pad(),'Simulação de alianças',tbl(['Figura','Efeito no IPE','Risco'],al.map(function(x){return '<tr><td><b>'+esc(x.figura)+'</b></td><td>'+esc(x.efeito_ipe||'')+'</td><td>'+esc(x.risco||'')+'</td></tr>';}).join(''))));
  if(limpo(r.conclusao))s.push(sec(pad(),'Conclusão estratégica','<p class="serif">'+esc(r.conclusao)+'</p>'));
@@ -628,15 +660,15 @@ function comoUsarBox(){
  return '<div class="usar"><div class="usar-h">Como aproveitar este relatório</div><ol class="usar-steps">'+
   '<li>Leve as <b>recomendações</b> e a conclusão direto para a sua decisão ou reunião.</li>'+
   '<li>Comece pelo que as matrizes destacam (<b>SWOT, GUT</b>): é onde está o maior retorno.</li>'+
-  '<li>Quer mais precisão? <b>Envie suas fontes e dados</b> no formulário e gere de novo — a confiabilidade sobe.</li>'+
+  '<li>Quer mais precisão? <b>Envie suas fontes e dados</b> no formulário e gere de novo — o embasamento sobe.</li>'+
   '<li>Refaça a cada período para <b>comparar a evolução</b>.</li>'+
   '</ol></div>';
 }
 function baseBox(){var b=state.base;if(!b)return '';
  return '<div class="base"><div class="base-h">Base desta análise</div>'+
-  '<div class="base-top"><span class="base-nota">Confiabilidade '+b.nota+'/100</span><span class="base-bar"><i style="width:'+b.nota+'%"></i></span></div>'+
+  '<div class="base-top"><span class="base-nota">Nível de embasamento '+b.nota+'/100</span><span class="base-bar"><i style="width:'+b.nota+'%"></i></span></div>'+
   '<div class="base-txt">'+esc(b.apoio)+'</div>'+
-  (b.falta.length?'<div class="base-sobe">Para elevar a confiabilidade, envie: <b>'+b.falta.map(esc).join('</b> e <b>')+'</b>.</div>':'')+
+  (b.falta.length?'<div class="base-sobe">Para elevar o embasamento, envie: <b>'+b.falta.map(esc).join('</b> e <b>')+'</b>.</div>':'')+
   '</div>';
 }
 function report(){var r=state.relatorio||{};var d=state.dados;state.base=baseAnalise(r,d);return state.promptId==='governo'?relGoverno(r,d):(state.promptId==='perfil'?relPerfil(r,d):relEmpresa(r,d));}
@@ -646,8 +678,7 @@ const adminState={clientes:[],carregando:false,msg:'',erro:'',novoOpen:false};
 function reaisCent(v){var n=parseFloat(v);return isNaN(n)?0:Math.round(n*100);}
 function centReais(c){return ((Number(c)||0)/100).toFixed(2);}
 async function adminApi(acao,extra){
- const tok=state.cliente&&state.cliente.token;
- const r=await fetch('/api/admin',{method:'POST',headers:{'content-type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({acao:acao},extra||{}))});
+ const r=await authFetch('/api/admin',Object.assign({acao:acao},extra||{}));
  if(r.status===401){sair();throw new Error('Sessão expirada.');}
  const j=await r.json();
  if(!r.ok||!j.ok)throw new Error((j&&j.erro)||('Erro '+r.status));
@@ -728,19 +759,18 @@ async function gerar(){const p=PROMPTS[state.promptId];p.campos.forEach(f=>{if(f
  const falta=p.campos.filter(f=>f.obrig&&!state.dados[f.id]);
  if(falta.length){alert('Preencha: '+falta.map(f=>f.label).join(', '));return;}
  const tok=state.cliente&&state.cliente.token;if(!tok){sair();return;}
- const H={'content-type':'application/json','Authorization':'Bearer '+tok};
  // Chave de idempotência: uma por tentativa. Reusada só num retry SEM alterar o formulário
  // (é limpa ao editar campos, trocar modelo, voltar ou concluir). Evita gerar/cobrar em duplicidade.
  if(!state.idem){state.idem=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('id-'+Date.now()+'-'+Math.random().toString(16).slice(2));}
  state.erro=null;state.fase='Pesquisando dados na web…';go('loading');
  try{
-  const r1=await fetch('/api/pesquisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo})});
+  const r1=await authFetch('/api/pesquisar',{promptId:state.promptId,dados:state.dados,modelo:state.modelo,idem:state.idem});
   if(r1.status===401){sair();return;}
   const j1=await r1.json();
   if(!r1.ok||!j1.ok){state.erro=((j1&&j1.erro)||('Erro '+r1.status));go('form');return;}
   state.fontes=j1.fontes||[];
   state.fase='Redigindo o relatório…';go('loading');
-  const r2=await fetch('/api/analisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo,contexto:j1.contexto||'',fontes:state.fontes||[],idem:state.idem})});
+  const r2=await authFetch('/api/analisar',{promptId:state.promptId,dados:state.dados,modelo:state.modelo,contexto:j1.contexto||'',fontes:state.fontes||[],idem:state.idem});
   if(r2.status===401){sair();return;}
   const j2=await r2.json();
   if(!r2.ok||!j2.ok){state.erro=((j2&&j2.erro)||'')+((j2&&j2.detalhe)?(' — detalhe: '+j2.detalhe):'')||('Erro '+r2.status);go('form');return;}
