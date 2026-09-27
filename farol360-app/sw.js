@@ -1,6 +1,6 @@
 // FAROL360 — Service Worker (PWA). network-first para GET; nunca toca em /api/.
 // Bumpe este número a cada release (deve casar com APP_VER no index.html e a versão do package.json).
-const CACHE = 'farol360-1.0.1';
+const CACHE = 'farol360-1.1.0';
 
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 

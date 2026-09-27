@@ -288,7 +288,7 @@ function precoBR(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');}
 const SB_URL='https://xjifquevscvkdhnjxqkh.supabase.co';
 const SB_ANON='sb_publishable_5o74K-oYu8VKfiLHfy_dLQ_Y80ywKlT';
 // Versão do app — mude a cada release. Deve casar com package.json e com o CACHE do sw.js.
-const APP_VER='1.0.1';
+const APP_VER='1.1.0';
 const PRECO_CENT={haiku:50,sonnet:100,opus:150};
 function saldoBR(c){return precoBR((Number(c)||0)/100);}
 function liberadas(){return (state.cliente&&state.cliente.analises)||[];}
@@ -650,10 +650,11 @@ function baseAnalise(r,d){
  var cobPts=tot?Math.round(obs/tot*35):12;
  var nota=Math.max(8,Math.min(100,fontesPts+cliPts+cobPts));
  var falta=[];
+ var extra=state.promptId==='perfil'?'números reais que você tenha (pesquisas, métricas de redes)':(state.promptId==='governo'?'relatórios ou indicadores oficiais que você tenha':'dados da empresa: CNPJ, faixa de faturamento, nº de obras/portfólio e certidões');
+ if(state.promptId==='empresa')falta.push(extra);
  if(!temCliF)falta.push('links ou documentos das suas fontes');
- if(!temCliE)falta.push('mais contexto sobre o que está sendo analisado');
- var extra=state.promptId==='perfil'?'números reais que você tenha (pesquisas, métricas de redes)':(state.promptId==='governo'?'relatórios ou indicadores oficiais que você tenha':'dados internos (participação, resultados relativos)');
- if(falta.length<2)falta.push(extra);
+ if(!temCliE&&state.promptId!=='empresa')falta.push('mais contexto sobre o que está sendo analisado');
+ if(!falta.length)falta.push(extra);
  var apoio='Apoiada em '+fontes+' fonte'+(fontes===1?'':'s')+' pública'+(fontes===1?'':'s')+((temCliF||temCliE)?' e nos dados que você enviou':'')+'.';
  return {nota:nota,apoio:apoio,falta:falta.slice(0,2)};
 }
@@ -665,8 +666,9 @@ function comoUsarBox(){
   '<li>Refaça a cada período para <b>comparar a evolução</b>.</li>'+
   '</ol></div>';
 }
-function baseBox(){var b=state.base;if(!b)return '';
+function baseBox(){var b=state.base;if(!b)return '';var baixo=b.nota<50;
  return '<div class="base"><div class="base-h">Base desta análise</div>'+
+  (baixo?'<div style="margin:2px 0 12px;padding:10px 12px;border-left:3px solid var(--crit);background:var(--crit-soft);border-radius:8px;font-size:12.5px;line-height:1.5;color:var(--ink)"><b>Dados públicos escassos sobre o alvo.</b> Boa parte do que aparece abaixo é <b>contexto de setor e região</b>, não medição direta — leia como leitura de cenário e estrutura de diagnóstico, não como um perfil fechado. Para um perfil real, envie os dados indicados abaixo.</div>':'')+
   '<div class="base-top"><span class="base-nota">Nível de embasamento '+b.nota+'/100</span><span class="base-bar"><i style="width:'+b.nota+'%"></i></span></div>'+
   '<div class="base-txt">'+esc(b.apoio)+'</div>'+
   (b.falta.length?'<div class="base-sobe">Para elevar o embasamento, envie: <b>'+b.falta.map(esc).join('</b> e <b>')+'</b>.</div>':'')+
