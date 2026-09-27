@@ -31,18 +31,31 @@ async function sbPerfil(uid) {
     return (Array.isArray(j) && j[0]) ? j[0] : null;
   } catch (e) { return null; }
 }
-// Débito atômico + registro do relatório. Devolve { ok, saldo, erro }.
-async function sbDebitar(uid, tipo, consulta, preco, titulo) {
+// Recupera uma entrega já gerada e cobrada, pela chave de idempotência. Devolve a linha ou null.
+async function sbEntregaPorIdem(uid, idem) {
+  const svc = process.env.SUPABASE_SERVICE_ROLE;
+  if (!svc || !uid || !idem) return null;
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/entregas?select=id,conteudo,fontes&user_id=eq.' + encodeURIComponent(uid) + '&idem_key=eq.' + encodeURIComponent(idem) + '&limit=1', { headers: { apikey: svc, Authorization: 'Bearer ' + svc } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (Array.isArray(j) && j[0]) ? j[0] : null;
+  } catch (e) { return null; }
+}
+// Débito atômico + PERSISTÊNCIA do relatório completo, numa transação idempotente.
+// Devolve { ok, saldo, entrega_id, repetido } ou { ok:false, erro }.
+async function sbDebitarSalvar(uid, tipo, modelo, titulo, preco, idem, conteudo, fontes) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   try {
-    const r = await fetch(SB_URL + '/rest/v1/rpc/debitar_e_registrar', {
+    const r = await fetch(SB_URL + '/rest/v1/rpc/debitar_e_entregar', {
       method: 'POST',
       headers: { apikey: svc, Authorization: 'Bearer ' + svc, 'content-type': 'application/json' },
-      body: JSON.stringify({ p_user: uid, p_tipo: tipo, p_consulta: consulta, p_preco: preco, p_titulo: titulo }),
+      body: JSON.stringify({ p_user: uid, p_tipo: tipo, p_modelo: modelo, p_titulo: titulo, p_preco: preco, p_idem: idem, p_conteudo: conteudo, p_fontes: fontes || [] }),
     });
     const j = await r.json();
-    return j || { ok: false };
-  } catch (e) { return { ok: false, erro: String(e) }; }
+    if (!r.ok) return { ok: false, erro: 'http_' + r.status, detalhe: JSON.stringify(j).slice(0, 200) };
+    return j || { ok: false, erro: 'sem_resposta' };
+  } catch (e) { return { ok: false, erro: 'excecao', detalhe: String(e).slice(0, 200) }; }
 }
 function tituloDe(promptId, d) {
   if (promptId === 'governo') return d.municipio || 'Avaliação de Governo';
@@ -223,6 +236,8 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const { promptId = 'empresa', dados = {}, modelo = 'sonnet', contexto = '' } = body;
+    const idem = String(body.idem || '').slice(0, 80);
+    const fontesArr = Array.isArray(body.fontes) ? body.fontes.slice(0, 30) : [];
     if (promptId !== 'empresa' && promptId !== 'governo' && promptId !== 'perfil') { res.status(400).json({ erro: 'Análise não reconhecida.' }); return; }
 
     // --- Autenticação + verificação de saldo/acesso ---
@@ -235,6 +250,19 @@ export default async function handler(req, res) {
     if (!perfil) { res.status(403).json({ erro: 'Perfil não encontrado. Contate o administrador.' }); return; }
     if (perfil.ativo === false) { res.status(403).json({ erro: 'Conta inativa. Contate o administrador.' }); return; }
     if (!Array.isArray(perfil.analises) || perfil.analises.indexOf(promptId) < 0) { res.status(403).json({ erro: 'Esta análise não está liberada no seu acesso.' }); return; }
+
+    // Recuperação idempotente: se esta análise já foi gerada e cobrada, devolve sem IA e
+    // sem cobrar de novo. Vem ANTES da checagem de saldo — um relatório já pago pode ser
+    // reaberto mesmo com saldo zerado (foi exatamente o caso do iPhone).
+    if (idem) {
+      const ex = await sbEntregaPorIdem(uid, idem);
+      if (ex) {
+        const p2 = await sbPerfil(uid);
+        res.status(200).json({ ok: true, relatorio: ex.conteudo, fontes: ex.fontes || [], saldo: p2 ? Number(p2.saldo_centavos) : undefined, recuperado: true });
+        return;
+      }
+    }
+
     if ((Number(perfil.saldo_centavos) || 0) < preco) { res.status(402).json({ erro: 'Saldo insuficiente para esta consulta. Solicite mais créditos ao administrador.' }); return; }
 
     const m = MODELOS[modelo] || MODELOS.sonnet;
@@ -291,10 +319,19 @@ export default async function handler(req, res) {
       let relatorio;
       try { relatorio = JSON.parse(extrairJSON(texto)); }
       catch (e) { fim({ ok: false, erro: 'A IA não devolveu JSON válido (stop_reason=' + (j.stop_reason || '?') + '). Início: ' + texto.slice(0, 160) + ' […] Fim: ' + texto.slice(-160) }); return; }
-      // --- Débito atômico + registro (só após o relatório ser gerado com sucesso) ---
-      const deb = await sbDebitar(uid, promptId, modelo, preco, tituloDe(promptId, dados));
-      const saldo = (deb && typeof deb.saldo === 'number') ? deb.saldo : undefined;
-      fim({ ok: true, relatorio: relatorio, saldo: saldo, uso: j.usage || null, modelo: m.id });
+      // --- Débito atômico + PERSISTÊNCIA do relatório (idempotente), só após gerar com sucesso ---
+      const idemKey = idem || ('auto-' + String(uid).slice(0, 8) + '-' + Date.now());
+      const deb = await sbDebitarSalvar(uid, promptId, modelo, tituloDe(promptId, dados), preco, idemKey, relatorio, fontesArr);
+      if (!deb || deb.ok !== true) {
+        // Não entrega de graça e não confirma cobrança que não aconteceu (achado 5.1).
+        const msg = (deb && deb.erro === 'saldo_insuficiente')
+          ? 'Saldo insuficiente para esta consulta. Solicite mais créditos ao administrador.'
+          : 'Não foi possível confirmar a cobrança agora. Tente de novo — você não será cobrado em duplicidade, e um relatório já concluído pode ser reaberto em “Meus relatórios”.';
+        fim({ ok: false, erro: msg });
+        return;
+      }
+      const saldo = (typeof deb.saldo === 'number') ? deb.saldo : undefined;
+      fim({ ok: true, relatorio: relatorio, fontes: fontesArr, saldo: saldo, entrega_id: deb.entrega_id, uso: j.usage || null, modelo: m.id });
     } catch (e) {
       fim({ ok: false, erro: 'Falha interna ao redigir o relatório.', detalhe: String(e).slice(0, 300) });
     }
