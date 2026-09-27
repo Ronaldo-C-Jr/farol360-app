@@ -282,7 +282,7 @@
 <body>
 <div class="app" id="app"></div>
 <script>
-const state={view:'login',promptId:null,dados:{},modelo:'sonnet',cliente:null,relatorio:null,fontes:[],fase:'',erro:null};
+const state={view:'login',promptId:null,dados:{},modelo:'sonnet',cliente:null,relatorio:null,fontes:[],fase:'',erro:null,idem:null,historico:[],histLoad:false};
 const MODELOS={haiku:{nome:'Leve',desc:'Rápida e essencial',preco:0.50},sonnet:{nome:'Moderada',desc:'Padrão recomendada',preco:1.00},opus:{nome:'Pesada',desc:'Mais profunda e ampla',preco:1.50}};
 function precoBR(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');}
 const SB_URL='https://xjifquevscvkdhnjxqkh.supabase.co';
@@ -384,10 +384,25 @@ function shell(b){const c=state.cliente;return ''+
  '<div class="saldo" title="Saldo de créditos"><span class="sl">Saldo</span><span class="sv">'+saldoBR(c&&c.saldo)+'</span></div>'+
  '<div class="who"><div class="n">'+esc(c&&c.nome||'')+'</div><div class="c">'+esc(c&&c.email||'')+'</div></div>'+
  ((c&&c.papel==='admin')?'<button class="iconbtn" data-act="admin" title="Administração"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>':'')+
+ '<button class="iconbtn" data-act="historico" title="Meus relatórios"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></button>'+
  '<button class="iconbtn" data-act="theme" title="Tema"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>'+
  '<button class="iconbtn" data-act="logout" title="Sair"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button></div>'+
  '<div class="main"><div class="wrap">'+b+'</div></div>';}
-function body(){if(state.view==='catalog')return catalog();if(state.view==='form')return form();if(state.view==='loading')return loading();if(state.view==='report')return report();if(state.view==='admin')return admin();return '';}
+function body(){if(state.view==='catalog')return catalog();if(state.view==='form')return form();if(state.view==='loading')return loading();if(state.view==='report')return report();if(state.view==='admin')return admin();if(state.view==='historico')return historicoView();return '';}
+function tipoLabel(t){return t==='governo'?'Avaliação de Governo':(t==='perfil'?'Análise de Figura Pública':'Análise de Empresa');}
+function dataBR(s){try{var d=new Date(s);if(isNaN(d))return '';return d.toLocaleDateString('pt-BR')+' · '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+async function meusRelatorios(){var tok=state.cliente&&state.cliente.token;if(!tok)return [];
+ try{var r=await fetch(SB_URL+'/rest/v1/entregas?select=id,tipo,titulo,criado_em&order=criado_em.desc&limit=30',{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+tok}});if(!r.ok)return [];var j=await r.json();return Array.isArray(j)?j:[];}catch(e){return [];}}
+async function abrirHistorico(){state.histLoad=true;go('historico');state.historico=await meusRelatorios();state.histLoad=false;if(state.view==='historico')render();}
+async function verEntrega(id){var tok=state.cliente&&state.cliente.token;if(!tok)return;
+ try{var r=await fetch(SB_URL+'/rest/v1/entregas?select=tipo,titulo,conteudo,fontes&id=eq.'+encodeURIComponent(id),{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+tok}});var j=await r.json();if(Array.isArray(j)&&j[0]){state.promptId=j[0].tipo;state.relatorio=j[0].conteudo;state.fontes=j[0].fontes||[];state.dados={};state.erro=null;go('report');}}catch(e){}}
+function historicoView(){
+ var back='<button class="backlink" data-act="back">'+IC.back+' Catálogo</button>';
+ var head='<div class="page-head"><div class="eyebrow">Meus relatórios</div><h1>Relatórios já gerados</h1><p>Tudo que você gerou fica salvo aqui. Abra para ver de novo ou baixar em PDF — sem gastar créditos.</p></div>';
+ if(state.histLoad)return back+head+'<div class="loading" style="min-height:30vh"><div>'+beacon()+'<h3>Carregando…</h3></div></div>';
+ if(!state.historico||!state.historico.length)return back+head+'<p style="color:var(--ink-soft)">Você ainda não gerou nenhum relatório.</p>';
+ var itens=state.historico.map(function(x){return '<button class="card" data-act="ver" data-id="'+esc(x.id)+'"><div class="ic">'+(IC[x.tipo]||IC.empresa)+'</div><h3>'+esc(x.titulo||tipoLabel(x.tipo))+'</h3><p>'+esc(tipoLabel(x.tipo))+' · '+esc(dataBR(x.criado_em))+'</p><div class="foot"><span class="go">Abrir ›</span></div></button>';}).join('');
+ return back+head+'<div class="cards">'+itens+'</div>';}
 function renderLogin(){
   app.innerHTML='<div class="login"><form class="login-card" id="lf"><div class="login-brand">'+farol(46)+'<div><div class="wm">FAROL<span>360</span></div><div class="tag">Inteligência Estratégica</div></div></div>'+
    '<div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" placeholder="seu@email.com"></div>'+
@@ -700,18 +715,23 @@ function bindCommon(){app.querySelectorAll('[data-act]').forEach(el=>el.addEvent
   if(a==='logout')sair();
   if(a==='theme')toggleTheme();
   if(a==='admin'){adminAbrir();}
-  if(a==='back'){state.dados={};state.relatorio=null;state.erro=null;go('catalog');}
+  if(a==='historico'){abrirHistorico();}
+  if(a==='ver'){verEntrega(el.dataset.id);}
+  if(a==='back'){state.dados={};state.relatorio=null;state.erro=null;state.idem=null;go('catalog');}
   if(a==='gerar')gerar();if(a==='pdf')window.print();}));
- app.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{state.promptId=el.dataset.open;state.dados={};state.erro=null;go('form');}));}
-function bindForm(){app.querySelectorAll('[data-f]').forEach(el=>{el.addEventListener('input',()=>state.dados[el.dataset.f]=el.value);el.addEventListener('change',()=>state.dados[el.dataset.f]=el.value);});
- app.querySelectorAll('[data-seg]').forEach(el=>el.addEventListener('click',()=>{state.dados[el.dataset.seg]=el.dataset.val;el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('on'));el.classList.add('on');}));
- app.querySelectorAll('[data-chk]').forEach(el=>el.addEventListener('change',()=>{const f=el.dataset.chk;const a=state.dados[f]||[];if(el.checked){if(!a.includes(el.value))a.push(el.value);}else{const i=a.indexOf(el.value);if(i>=0)a.splice(i,1);}state.dados[f]=a;el.closest('.chk').classList.toggle('on',el.checked);}));
- app.querySelectorAll('[data-mod]').forEach(el=>el.addEventListener('change',()=>{state.modelo=el.value;app.querySelectorAll('.modopt').forEach(m=>m.classList.remove('on'));el.closest('.modopt').classList.add('on');atualizarConsulta();}));}
+ app.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>{state.promptId=el.dataset.open;state.dados={};state.erro=null;state.idem=null;go('form');}));}
+function bindForm(){app.querySelectorAll('[data-f]').forEach(el=>{el.addEventListener('input',()=>{state.dados[el.dataset.f]=el.value;state.idem=null;});el.addEventListener('change',()=>{state.dados[el.dataset.f]=el.value;state.idem=null;});});
+ app.querySelectorAll('[data-seg]').forEach(el=>el.addEventListener('click',()=>{state.dados[el.dataset.seg]=el.dataset.val;state.idem=null;el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('on'));el.classList.add('on');}));
+ app.querySelectorAll('[data-chk]').forEach(el=>el.addEventListener('change',()=>{const f=el.dataset.chk;const a=state.dados[f]||[];if(el.checked){if(!a.includes(el.value))a.push(el.value);}else{const i=a.indexOf(el.value);if(i>=0)a.splice(i,1);}state.dados[f]=a;state.idem=null;el.closest('.chk').classList.toggle('on',el.checked);}));
+ app.querySelectorAll('[data-mod]').forEach(el=>el.addEventListener('change',()=>{state.modelo=el.value;state.idem=null;app.querySelectorAll('.modopt').forEach(m=>m.classList.remove('on'));el.closest('.modopt').classList.add('on');atualizarConsulta();}));}
 async function gerar(){const p=PROMPTS[state.promptId];p.campos.forEach(f=>{if(f.padrao&&!state.dados[f.id])state.dados[f.id]=f.padrao;});
  const falta=p.campos.filter(f=>f.obrig&&!state.dados[f.id]);
  if(falta.length){alert('Preencha: '+falta.map(f=>f.label).join(', '));return;}
  const tok=state.cliente&&state.cliente.token;if(!tok){sair();return;}
  const H={'content-type':'application/json','Authorization':'Bearer '+tok};
+ // Chave de idempotência: uma por tentativa. Reusada só num retry SEM alterar o formulário
+ // (é limpa ao editar campos, trocar modelo, voltar ou concluir). Evita gerar/cobrar em duplicidade.
+ if(!state.idem){state.idem=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('id-'+Date.now()+'-'+Math.random().toString(16).slice(2));}
  state.erro=null;state.fase='Pesquisando dados na web…';go('loading');
  try{
   const r1=await fetch('/api/pesquisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo})});
@@ -720,12 +740,13 @@ async function gerar(){const p=PROMPTS[state.promptId];p.campos.forEach(f=>{if(f
   if(!r1.ok||!j1.ok){state.erro=((j1&&j1.erro)||('Erro '+r1.status));go('form');return;}
   state.fontes=j1.fontes||[];
   state.fase='Redigindo o relatório…';go('loading');
-  const r2=await fetch('/api/analisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo,contexto:j1.contexto||''})});
+  const r2=await fetch('/api/analisar',{method:'POST',headers:H,body:JSON.stringify({promptId:state.promptId,dados:state.dados,modelo:state.modelo,contexto:j1.contexto||'',fontes:state.fontes||[],idem:state.idem})});
   if(r2.status===401){sair();return;}
   const j2=await r2.json();
   if(!r2.ok||!j2.ok){state.erro=((j2&&j2.erro)||'')+((j2&&j2.detalhe)?(' — detalhe: '+j2.detalhe):'')||('Erro '+r2.status);go('form');return;}
   if(state.cliente&&typeof j2.saldo==='number')state.cliente.saldo=j2.saldo;
-  state.relatorio=j2.relatorio;go('report');
+  if(Array.isArray(j2.fontes))state.fontes=j2.fontes;
+  state.relatorio=j2.relatorio;state.idem=null;go('report');
  }catch(e){state.erro='Falha de rede ou servidor: '+String(e);go('form');}
 }
 function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme');const dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',dark?'light':'dark');}
