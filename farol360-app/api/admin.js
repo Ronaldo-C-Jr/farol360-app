@@ -9,7 +9,7 @@ async function sbUserId(token) {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   if (!svc || !token) return null;
   try {
-    const r = await fetch(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
+    const r = await fetchT(SB_URL + '/auth/v1/user', { headers: { apikey: svc, Authorization: 'Bearer ' + token } });
     if (!r.ok) return null;
     const j = await r.json();
     return (j && j.id) ? j.id : null;
@@ -20,10 +20,19 @@ function svcHeaders() {
   const svc = process.env.SUPABASE_SERVICE_ROLE;
   return { apikey: svc, Authorization: 'Bearer ' + svc, 'content-type': 'application/json' };
 }
+// fetch com timeout — evita chamada pendurada ao Supabase (achado 7.4).
+async function fetchT(url, opts, ms) {
+  const ac = new AbortController();
+  const to = setTimeout(function () { ac.abort(); }, ms || 10000);
+  try { return await fetch(url, Object.assign({}, opts || {}, { signal: ac.signal })); }
+  finally { clearTimeout(to); }
+}
+// Valida UUID antes de concatenar em URL do PostgREST (achado 10.3).
+function isUUID(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '')); }
 
 async function perfilDe(uid) {
   try {
-    const r = await fetch(SB_URL + '/rest/v1/perfis?select=id,nome,email,papel,ativo,saldo_centavos,analises,criado_em&id=eq.' + uid, { headers: svcHeaders() });
+    const r = await fetchT(SB_URL + '/rest/v1/perfis?select=id,nome,email,papel,ativo,saldo_centavos,analises,criado_em&id=eq.' + encodeURIComponent(uid), { headers: svcHeaders() });
     if (!r.ok) return null;
     const j = await r.json();
     return (Array.isArray(j) && j[0]) ? j[0] : null;
@@ -53,7 +62,7 @@ export default async function handler(req, res) {
 
     // ---- LISTAR ----
     if (acao === 'listar') {
-      const r = await fetch(SB_URL + '/rest/v1/perfis?select=id,nome,email,papel,ativo,saldo_centavos,analises,criado_em&order=criado_em.desc', { headers: svcHeaders() });
+      const r = await fetchT(SB_URL + '/rest/v1/perfis?select=id,nome,email,papel,ativo,saldo_centavos,analises,criado_em&order=criado_em.desc', { headers: svcHeaders() });
       if (!r.ok) { const t = await r.text(); res.status(502).json({ erro: 'Falha ao listar (HTTP ' + r.status + ').', detalhe: t.slice(0, 200) }); return; }
       const lista = await r.json();
       res.status(200).json({ ok: true, clientes: Array.isArray(lista) ? lista : [] });
@@ -71,7 +80,7 @@ export default async function handler(req, res) {
       if (senha.length < 6) { res.status(400).json({ erro: 'A senha precisa ter ao menos 6 caracteres.' }); return; }
 
       // cria o usuário de autenticação (o gatilho cria o perfil automaticamente)
-      const rc = await fetch(SB_URL + '/auth/v1/admin/users', {
+      const rc = await fetchT(SB_URL + '/auth/v1/admin/users', {
         method: 'POST', headers: svcHeaders(),
         body: JSON.stringify({ email: email, password: senha, email_confirm: true }),
       });
@@ -82,7 +91,7 @@ export default async function handler(req, res) {
         return;
       }
       // completa o perfil (nome, saldo, plano)
-      const rp = await fetch(SB_URL + '/rest/v1/perfis?id=eq.' + jc.id, {
+      const rp = await fetchT(SB_URL + '/rest/v1/perfis?id=eq.' + encodeURIComponent(jc.id), {
         method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, svcHeaders()),
         body: JSON.stringify({ nome: nome, saldo_centavos: saldo, analises: analises, ativo: true }),
       });
@@ -95,14 +104,14 @@ export default async function handler(req, res) {
     // ---- ATUALIZAR (saldo, plano, ativo, nome) ----
     if (acao === 'atualizar') {
       const id = String(body.id || '');
-      if (!id) { res.status(400).json({ erro: 'Cliente não informado.' }); return; }
+      if (!isUUID(id)) { res.status(400).json({ erro: 'Cliente inválido.' }); return; }
       const patch = {};
       if (body.saldo_centavos != null) patch.saldo_centavos = Math.max(0, Math.round(Number(body.saldo_centavos) || 0));
       if (body.analises != null) patch.analises = limpaAnalises(body.analises);
       if (body.ativo != null) patch.ativo = !!body.ativo;
       if (body.nome != null) patch.nome = String(body.nome).trim();
       if (!Object.keys(patch).length) { res.status(400).json({ erro: 'Nada para atualizar.' }); return; }
-      const r = await fetch(SB_URL + '/rest/v1/perfis?id=eq.' + id, {
+      const r = await fetchT(SB_URL + '/rest/v1/perfis?id=eq.' + encodeURIComponent(id), {
         method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, svcHeaders()),
         body: JSON.stringify(patch),
       });
@@ -116,11 +125,11 @@ export default async function handler(req, res) {
     if (acao === 'creditar') {
       const id = String(body.id || '');
       const delta = Math.round(Number(body.delta_centavos) || 0);
-      if (!id || !delta) { res.status(400).json({ erro: 'Informe cliente e valor.' }); return; }
+      if (!isUUID(id) || !delta) { res.status(400).json({ erro: 'Informe cliente e valor.' }); return; }
       const atual = await perfilDe(id);
       if (!atual) { res.status(404).json({ erro: 'Cliente não encontrado.' }); return; }
       const novo = Math.max(0, (Number(atual.saldo_centavos) || 0) + delta);
-      const r = await fetch(SB_URL + '/rest/v1/perfis?id=eq.' + id, {
+      const r = await fetchT(SB_URL + '/rest/v1/perfis?id=eq.' + encodeURIComponent(id), {
         method: 'PATCH', headers: Object.assign({ Prefer: 'return=representation' }, svcHeaders()),
         body: JSON.stringify({ saldo_centavos: novo }),
       });
