@@ -288,7 +288,7 @@ function precoBR(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');}
 const SB_URL='https://xjifquevscvkdhnjxqkh.supabase.co';
 const SB_ANON='sb_publishable_5o74K-oYu8VKfiLHfy_dLQ_Y80ywKlT';
 // Versão do app — mude a cada release. Deve casar com package.json e com o CACHE do sw.js.
-const APP_VER='1.0.0';
+const APP_VER='1.0.1';
 const PRECO_CENT={haiku:50,sonnet:100,opus:150};
 function saldoBR(c){return precoBR((Number(c)||0)/100);}
 function liberadas(){return (state.cliente&&state.cliente.analises)||[];}
@@ -525,7 +525,8 @@ function catalog(){var lib=liberadas();var semSaldo=(state.cliente&&Number(state
   '<div class="foot"><span>base:</span><span class="v">'+esc(p.versao)+'</span><span class="go">'+(bloq?'':'Abrir ›')+'</span></div></button>';}).join('');
  var aviso=semSaldo?comprarBox('Seu saldo de créditos acabou.'):'';
  var como='<div class="como"><div class="como-h">Como funciona · 3 passos</div><ol class="como-steps"><li><b>Escolha</b> a análise abaixo (empresa, governo ou figura pública).</li><li><b>Preencha</b> os dados e a profundidade — quanto mais detalhes e fontes você enviar, mais confiável o resultado.</li><li><b>Receba</b> o relatório com gráficos, recomendações e fontes, e baixe em PDF.</li></ol></div>';
- return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div>'+como+aviso+'<div class="cards">'+cards+'</div>';}
+ var hist='<button class="ad-cta" data-act="historico" type="button" style="margin-top:0;margin-bottom:18px"><span class="ad-cta-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span><span class="ad-cta-tx"><span class="ad-cta-t">Meus relatórios</span><span class="ad-cta-s">Reabra os relatórios que você já gerou — sem gastar créditos</span></span><span class="ad-cta-arrow">›</span></button>';
+ return '<div class="page-head"><div class="eyebrow">Catálogo de análises</div><h1>Qual análise você quer gerar?</h1><p>Escolha um tipo, informe os dados e o sistema processa na IA e devolve o relatório para baixar em PDF.</p></div>'+hist+como+aviso+'<div class="cards">'+cards+'</div>';}
 function fieldHTML(f){const v=state.dados[f.id];const req=f.obrig?'<span class="req">*</span>':'';
  if(f.tipo==='text')return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><input id="f_'+f.id+'" data-f="'+f.id+'" type="text" placeholder="'+esc(f.placeholder||'')+'" value="'+esc(v||'')+'"></div>';
  if(f.tipo==='select'){const o=f.opcoes.map(x=>'<option '+(v===x?'selected':'')+'>'+esc(x)+'</option>').join('');return '<div class="field"><label for="f_'+f.id+'">'+esc(f.label)+' '+req+'</label><select id="f_'+f.id+'" data-f="'+f.id+'"><option value="" '+(!v?'selected':'')+' disabled>Selecione…</option>'+o+'</select></div>';}
