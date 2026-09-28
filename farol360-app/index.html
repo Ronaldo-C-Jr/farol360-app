@@ -288,7 +288,7 @@ function precoBR(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',');}
 const SB_URL='https://xjifquevscvkdhnjxqkh.supabase.co';
 const SB_ANON='sb_publishable_5o74K-oYu8VKfiLHfy_dLQ_Y80ywKlT';
 // Versão do app — mude a cada release. Deve casar com package.json e com o CACHE do sw.js.
-const APP_VER='1.1.0';
+const APP_VER='1.1.1';
 const PRECO_CENT={haiku:50,sonnet:100,opus:150};
 function saldoBR(c){return precoBR((Number(c)||0)/100);}
 function liberadas(){return (state.cliente&&state.cliente.analises)||[];}
@@ -436,6 +436,7 @@ function renderLogin(){
    '<div class="field"><label for="senha">Senha</label><input id="senha" type="password" autocomplete="current-password" placeholder="Sua senha"></div>'+
    '<button class="btn block" id="btnEntrar" type="submit">Entrar</button>'+
    '<div class="errbox" id="loginErr" hidden></div>'+
+   '<a class="ad-cta" href="/exemplo" style="text-decoration:none"><span class="ad-cta-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="ad-cta-tx"><span class="ad-cta-t">Clique e veja do que somos capazes</span><span class="ad-cta-s">Exemplos reais de análise — empresa, governo e figura pública</span></span><span class="ad-cta-arrow">›</span></a>'+
    '<div class="login-note">Acesso restrito a clientes Gênesis / Farol360. As credenciais são cadastradas pelo administrador.</div>'+
    '<div style="text-align:center;color:var(--ink-faint);font-size:11px;letter-spacing:.08em;margin-top:10px">v'+APP_VER+'</div>'+
    '<button class="btn ghost sm" id="btnInstalar" type="button" hidden style="width:100%;margin-top:14px">'+farol(15)+' Instalar o app</button>'+
